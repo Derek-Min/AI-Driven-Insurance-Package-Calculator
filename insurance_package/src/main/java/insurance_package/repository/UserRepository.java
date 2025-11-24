@@ -1,14 +1,11 @@
 package insurance_package.repository;
 
 import insurance_package.model.User;
+import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.stereotype.Repository;
 
-@Repository
-public interface UserRepository extends MongoRepository<User, String> {
-    default User findByFullName(String fullName) {
-        return null;
-    }
+import java.util.Optional;
+
+public interface UserRepository extends MongoRepository<User, ObjectId> {
+    Optional<User> findByEmail(String email);
 }
-
-

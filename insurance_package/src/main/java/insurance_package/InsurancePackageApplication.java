@@ -1,37 +1,42 @@
 package insurance_package;
 
-import java.util.*;
-import insurance_package.model.User;
+
 import insurance_package.repository.UserRepository;
+import insurance_package.repository.ProductRepository;
+import insurance_package.repository.QuoteRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cglib.core.Local;
 import org.springframework.context.annotation.Bean;
-import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
-
-import java.time.LocalDateTime;
 
 @SpringBootApplication
-@EnableMongoRepositories(basePackages = "insurance_package.repository")
 public class InsurancePackageApplication {
+
+    private static final Logger log = LoggerFactory.getLogger(InsurancePackageApplication.class);
 
     public static void main(String[] args) {
         SpringApplication.run(InsurancePackageApplication.class, args);
     }
 
     @Bean
-    CommandLineRunner init(UserRepository userRepository) {
+    CommandLineRunner init(UserRepository users,
+                           ProductRepository products,
+                           QuoteRepository quotations) {
         return args -> {
-            System.out.println("Insurance Package Application has been initialized");
-            System.out.println("All users in Database: ");
-            userRepository.findAll().forEach(user1 ->
-                    System.out.println("- " + user1.getFullName() + " | " +  user1.getPreferredLanguage()));
+            log.info("Insurance Package Application Initialized");
 
-            User found = userRepository.findByFullName("Test User");
-            System.out.println("Find by Full Name: "+ (found != null ? found.getEmail() : "Not Found!"));
+            log.info("Users:");
+            users.findAll().forEach(u -> log.info("- {}", u));   // no getters
 
+            log.info("Products:");
+            products.findAll().forEach(p -> log.info("- {}", p)); // no getters
 
+            log.info("Quotations:");
+            quotations.findAll().forEach(q -> log.info("- {}", q)); // no getters
+
+            log.info("Data printed successfully!");
         };
     }
 
