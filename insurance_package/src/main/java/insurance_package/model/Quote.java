@@ -25,7 +25,8 @@ public class Quote {
 
     private Map<String, Object> requestDetails;
     private Map<String, Object> premiumBreakdown;
-    private BigDecimal totalPremium;
+    private Double totalPremium;
+    private int riskScore;
     private String explanation;
 
     private QuoteStatus status;

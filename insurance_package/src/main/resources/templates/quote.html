@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Motor Insurance Quotation – Trust Insurance</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 14px; color: #333; margin: 0; padding: 0; }
+        .wrapper { max-width: 720px; margin: 0 auto; background-color: #f7f7f7; padding: 20px; }
+        .card { background-color: #ffffff; border-radius: 6px; padding: 20px 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+
+        .brand-header {
+            text-align: center;
+            padding: 12px 16px 18px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .brand-name {
+            font-size: 22px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+        .brand-tagline {
+            margin-top: 4px;
+            font-size: 13px;
+            color: #0070c9;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+        .banner {
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: linear-gradient(90deg, #0070c9, #00a0b0);
+            border-radius: 4px;
+            color: #ffffff;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        h1 { font-size: 18px; margin-top: 18px; }
+        h2 { font-size: 15px; margin-top: 20px; }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 8px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .total-row td {
+            font-weight: bold;
+        }
+        ul { padding-left: 18px; }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #777;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <div class="card">
+        <div class="brand-header">
+            <div class="brand-name">Trust Insurance Co.,ltd</div>
+            <div class="brand-tagline">Secure your future</div>
+            <!-- Optional coloured banner -->
+            <div class="banner">
+                Secure your future with comprehensive protection for you and your vehicle.
+            </div>
+        </div>
+
+        <h1>Motor Insurance Quotation</h1>
+
+        <p>Dear ${customerName},</p>
+
+        <p>
+            Thank you for choosing <strong>${insurerName}</strong>.<br>
+            Below are the premium and coverage details for your vehicle:
+        </p>
+
+        <h2>Vehicle & Coverage Summary</h2>
+        <ul>
+            <li><strong>Vehicle:</strong> ${vehicleDescription}</li>
+            <li><strong>Usage Type:</strong> ${usage}</li>
+            <li><strong>Plate No:</strong> ${plateNo}</li>
+            <li><strong>Sum Insured:</strong> ${currency} ${sumInsured}</li>
+            <li><strong>Region:</strong> ${region}</li>
+            <li><strong>NCD:</strong> ${ncdPercent}%</li>
+        </ul>
+
+        <h2>Premium & Coverage Details</h2>
+
+        <table>
+            <thead>
+            <tr>
+                <th>Covered Risk</th>
+                <th>Premium (${currency})</th>
+            </tr>
+            </thead>
+            <tbody>
+            ${coverageRows}
+            </tbody>
+            <tfoot>
+            <tr class="total-row">
+                <td>Total Premium</td>
+                <td>${currency} ${totalPremium}</td>
+            </tr>
+            </tfoot>
+        </table>
+
+        <div class="footer">
+            <p>
+                The premium amount stated herein is provided solely as an estimate and for reference purposes.
+                It is not to be construed as a binding offer or commitment, and it is subject to further
+                underwriting and approval by the insurer in accordance with the terms and conditions of the
+                insurance policy.
+            </p>
+            <p>
+                If you have any questions, you may reply to this email or contact us at ${contactNumber}.
+            </p>
+            <p>
+                Best regards,<br>
+                ${insurerName}
+            </p>
+        </div>
+    </div>
+</div>
+</body>
+</html>
