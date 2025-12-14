@@ -36,7 +36,10 @@
 
 
 <script>
-import { sendMessage, confirmSend } from "../api";
+//import { sendMessage, confirmSend } from "../api";
+import * as api from "../api";
+console.log("API MODULE:", api);
+
 
 export default {
   data() {
@@ -65,59 +68,47 @@ export default {
       const text = this.userInput.trim();
       if (!text) return;
 
-      // Show user bubble
+      // Show user message
       this.messages.push({ sender: "user", text });
       this.userInput = "";
-
       this.scrollToBottom();
+
       this.loading = true;
 
       try {
         let response;
 
-        // Detect "confirm" case
+        // Detect confirm keywords
         if (/^(yes|send|confirm)$/i.test(text)) {
-          response = await confirmSend(this.sessionId);
+          response = await api.confirmSend(this.sessionId);
         } else {
-          response = await sendMessage(this.sessionId, text);
+          response = await api.sendMessage(this.sessionId, text);
         }
 
-        console.log("Raw chatbot response:", response.data);
+        console.log("Raw chatbot response:", response);
 
-        // ---- IMPORTANT: normalize the payload shape ----
-        let payload = response.data;
-
-        // case 1: Spring Boot just forwards Lambda JSON {statusCode, headers, body}
-        if (payload && payload.body && !payload.messages) {
-          try {
-            if (typeof payload.body === "string") {
-              payload = JSON.parse(payload.body);
-            } else if (typeof payload.body === "object") {
-              payload = payload.body;
-            }
-          } catch (e) {
-            console.error("Failed to parse payload.body:", e);
-          }
-        }
-
-        // now expect: payload = { sessionId, messages: [...] }
-        const botMsgs = (payload && payload.messages) ? payload.messages : [];
-
-        if (!botMsgs.length) {
+        // ✅ EXPECT NEW NORMALIZED FORMAT
+        // { sessionId, reply, shouldEndSession }
+        if (!response || !response.reply) {
           this.messages.push({
             sender: "bot",
             text: "❗ I didn't receive any reply from the server."
           });
         } else {
-          botMsgs.forEach(m => {
-            // m can be {type:'text', text:'...'} or plain string
-            const txt = m && m.text ? m.text : String(m);
-            this.messages.push({ sender: "bot", text: txt });
+          this.messages.push({
+            sender: "bot",
+            text: response.reply
           });
+
+          // keep session in sync
+          if (response.sessionId) {
+            this.sessionId = response.sessionId;
+            this.saveSession();
+          }
         }
 
       } catch (err) {
-        console.error("Chat error:", err.response ? err.response.data : err.message);
+        console.error("Chat error:", err);
 
         this.messages.push({
           sender: "bot",
@@ -127,7 +118,8 @@ export default {
 
       this.loading = false;
       this.scrollToBottom();
-    },
+    }
+    ,
 
     scrollToBottom() {
       this.$nextTick(() => {
@@ -139,6 +131,7 @@ export default {
     }
   }
 };
+
 </script>
 
 

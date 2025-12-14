@@ -39,9 +39,9 @@ public class QuoteController {
         Quote saved = quoteRepository.save(quote);
 
         // 2) Build email only for Motor line (private or commercial)
-        if ("Motor".equalsIgnoreCase(req.getLine())) {
+       /* if ("Motor".equalsIgnoreCase(req.getLine())) {
             sendMotorQuoteEmail(req, result);
-        }
+        }*/
 
         return ResponseEntity.ok(saved);
     }

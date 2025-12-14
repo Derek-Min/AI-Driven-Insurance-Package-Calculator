@@ -25,19 +25,15 @@ public class AwsChatbotService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> askChatbot(Map<String, Object> payload) {
         try {
-            // ---- Build the payload that Lambda expects ----
+            // ---- Build payload for Lambda ----
             Map<String, Object> lambdaPayload = new HashMap<>();
-
-            // session id from frontend
             lambdaPayload.put("sessionId", payload.get("sessionId"));
 
-            // frontend sends "text" -> Lambda expects "inputText"
             Object text = payload.get("text");
             if (text != null) {
                 lambdaPayload.put("inputText", text);
             }
 
-            // if frontend sends type = "confirm", map to action=confirm_send
             Object type = payload.get("type");
             if ("confirm".equals(type)) {
                 lambdaPayload.put("action", "confirm_send");
@@ -55,22 +51,42 @@ public class AwsChatbotService {
 
             System.out.println("RAW LAMBDA RESPONSE = " + raw);
 
-            // Lambda normally returns an "API Gateway style" envelope:
-            // { statusCode: 200, headers: {...}, body: "{...json...}" }
+            // ---- Parse API Gateway–style envelope ----
             Map<String, Object> envelope = mapper.readValue(raw, Map.class);
-
             Object body = envelope.get("body");
 
+            // ---- Case 1: body is JSON string ----
             if (body instanceof String) {
-                Map<String, Object> parsed = mapper.readValue((String) body, Map.class);
-                System.out.println("PARSED BODY = " + parsed);
-                return parsed;
-            } else if (body instanceof Map) {
-                return (Map<String, Object>) body;
+                Map<String, Object> parsed =
+                        mapper.readValue((String) body, Map.class);
+
+                Map<String, Object> clean = new HashMap<>();
+                clean.put("sessionId", parsed.get("sessionId"));
+                clean.put("reply", parsed.get("reply"));
+                clean.put("shouldEndSession", parsed.get("shouldEndSession"));
+
+                return clean;
             }
 
-            // In error cases Lambda may return errorMessage without "body"
-            return Map.of("error", "No body found in Lambda response: " + envelope);
+            // ---- Case 2: body already a Map ----
+            if (body instanceof Map) {
+                Map<String, Object> parsed = (Map<String, Object>) body;
+
+                Map<String, Object> clean = new HashMap<>();
+                clean.put("sessionId", parsed.get("sessionId"));
+                clean.put("reply", parsed.get("reply"));
+                clean.put("shouldEndSession", parsed.get("shouldEndSession"));
+
+                return clean;
+            }
+
+            // ---- Fallback ----
+            return Map.of(
+                    "error",
+                    "No valid body found in Lambda response",
+                    "rawResponse",
+                    envelope
+            );
 
         } catch (Exception e) {
             e.printStackTrace();

@@ -26,44 +26,64 @@ public class AwsEmailService {
     private String fromAddress;
 
     // =======================
-    // SEND EMAIL
+    // SEND EMAIL (SES)
     // =======================
     public void sendQuoteEmail(String to, String subject, String htmlBody) {
+
         try {
-            Destination dest = Destination.builder()
+            Destination destination = Destination.builder()
                     .toAddresses(to)
                     .build();
 
+            Content subjectContent = Content.builder()
+                    .data(subject)
+                    .charset("UTF-8")
+                    .build();
+
+            Content htmlContent = Content.builder()
+                    .data(htmlBody)
+                    .charset("UTF-8")
+                    .build();
+
+            Body body = Body.builder()
+                    .html(htmlContent)
+                    .build();
+
             Message message = Message.builder()
-                    .subject(Content.builder().data(subject).build())
-                    .body(Body.builder()
-                            .html(Content.builder().data(htmlBody).build())
-                            .build())
+                    .subject(subjectContent)
+                    .body(body)
                     .build();
 
             SendEmailRequest request = SendEmailRequest.builder()
                     .source(fromAddress)
-                    .destination(dest)
+                    .destination(destination)
                     .message(message)
                     .build();
 
-            sesClient.sendEmail(request);
+            SendEmailResponse response = sesClient.sendEmail(request);
 
-            log.info("SES email sent to {}", to);
+            log.info("SES email sent successfully. MessageId={}", response.messageId());
+
+        } catch (MessageRejectedException e) {
+            log.error("SES rejected the message. Verify email addresses. {}", e.awsErrorDetails().errorMessage());
+        } catch (SesException e) {
+            log.error("SES error: {}", e.awsErrorDetails().errorMessage());
         } catch (Exception e) {
-            log.error("Failed to send SES email to {}: {}", to, e.getMessage());
+            log.error("Unexpected error while sending SES email", e);
         }
     }
 
     // =======================
-    // Build Coverage Table Rows
+    // Build Coverage Rows
     // =======================
     private String buildCoverageRows(PremiumBreakdown breakdown) {
         StringBuilder sb = new StringBuilder();
         for (CoverageItem item : breakdown.getItems()) {
             sb.append("<tr>")
                     .append("<td>").append(item.getLabel()).append("</td>")
-                    .append("<td>").append(String.format("%.2f", item.getAmount())).append("</td>")
+                    .append("<td style='text-align:right'>")
+                    .append(String.format("%.2f", item.getAmount()))
+                    .append("</td>")
                     .append("</tr>");
         }
         return sb.toString();
@@ -73,7 +93,9 @@ public class AwsEmailService {
     // Load HTML Template
     // =======================
     private String loadTemplate(String filename) {
-        try (InputStream is = getClass().getClassLoader()
+
+        try (InputStream is = getClass()
+                .getClassLoader()
                 .getResourceAsStream("templates/" + filename)) {
 
             if (is == null) {
@@ -83,39 +105,38 @@ public class AwsEmailService {
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
 
         } catch (Exception e) {
-            throw new RuntimeException("Error reading email template: " + filename, e);
+            throw new RuntimeException("Failed to load email template: " + filename, e);
         }
     }
 
-
     // =======================
-    // Build Full Email HTML
+    // Build Full Quotation Email
     // =======================
-    public String buildQuotationEmailHtml(String customerName,
-                                          String insurerName,
-                                          String vehicleDescription,
-                                          String plateNo,
-                                          String usage,
-                                          String region,
-                                          double ncdPercent,
-                                          PremiumResult result) {
+    public String buildQuotationEmailHtml(
+            String customerName,
+            String insurerName,
+            String vehicleDescription,
+            String plateNo,
+            String usage,
+            String region,
+            double ncdPercent,
+            PremiumResult result) {
 
         PremiumBreakdown breakdown = result.getBreakdown();
 
-        String template = loadTemplate("quote.html"); // 👈 uses /templates/email/quote.html
-
-        String coverageRows = buildCoverageRows(breakdown);
+        String template = loadTemplate("quote.html");
 
         return template
                 .replace("${customerName}", customerName)
                 .replace("${insurerName}", insurerName)
                 .replace("${vehicleDescription}", vehicleDescription)
                 .replace("${plateNo}", plateNo)
+                .replace("${usage}", usage)
+                .replace("${region}", region)
                 .replace("${sumInsured}", String.format("%.2f", breakdown.getSumInsured()))
                 .replace("${currency}", breakdown.getCurrency())
-                .replace("${region}", region)
                 .replace("${ncdPercent}", String.format("%.2f", ncdPercent))
-                .replace("${coverageRows}", coverageRows)
+                .replace("${coverageRows}", buildCoverageRows(breakdown))
                 .replace("${totalPremium}", String.format("%.2f", breakdown.getTotalPremium()))
                 .replace("${contactNumber}", "+95-XXX-XXX-XXX");
     }

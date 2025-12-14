@@ -12,13 +12,18 @@ public class EmailTestController {
 
     private final AwsEmailService awsEmailService;
 
-    @GetMapping("/api/email/test")
+    // TEST ONLY - DO NOT EXPOSE IN PRODUCTION
+    @GetMapping("/api/test/email")
     public String testEmail(@RequestParam String to) {
+
         awsEmailService.sendQuoteEmail(
                 to,
-                "Test SES Email",
-                "<h1>Hello from your Insurance App</h1><p>SES is working!</p>"
+                "SES Test Email - Trust Insurance",
+                "<h2>SES is configured correctly</h2>" +
+                        "<p>This is a test email from the Trust Insurance system.</p>"
         );
-        return "Email sent to " + to;
+
+        return "Test email sent to " + to;
     }
 }
+
