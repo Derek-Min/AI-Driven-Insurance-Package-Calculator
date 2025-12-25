@@ -8,13 +8,28 @@ import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class ChatbotController {
 
     private final AwsChatbotService chatbotService;
 
-    // Very simple mapping: POST /chatbot
+    // Frontend calls THIS endpoint
     @PostMapping("/chatbot")
     public Map<String, Object> ask(@RequestBody Map<String, Object> body) {
-        return chatbotService.askChatbot(body);
+
+        Map<String, Object> chatbotReply = chatbotService.askChatbot(body);
+
+        Boolean endSession = (Boolean) chatbotReply.get("shouldEndSession");
+
+        if (Boolean.TRUE.equals(endSession)) {
+            // 🔑 get intent + slots from Lambda extra
+            Map<String, Object> extra =
+                    (Map<String, Object>) chatbotReply.get("extra");
+
+            chatbotService.processQuotation(extra);
+        }
+
+        return chatbotReply;
     }
+
 }

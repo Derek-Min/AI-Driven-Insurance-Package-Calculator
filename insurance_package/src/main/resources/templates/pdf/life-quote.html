@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Life Insurance Quotation</title>
+
+    <style>
+        @page { size: A4; margin: 18mm; }
+
+        body{
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            color: #1f2a44;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* ===== BRAND COLORS ===== */
+        .brand-primary { color:#0a5cff; }
+        .brand-muted   { color:#5a6b88; }
+
+        /* ===== HEADER ===== */
+        .header-wrap{
+            width: 100%;
+            margin-bottom: 12px;
+        }
+
+        .header-table{
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .header-table td{ vertical-align: top; }
+
+        .logo {
+            height: 88px;
+            margin-bottom: 4px;
+        }
+
+        .company-name {
+            font-size: 22px;
+            font-weight: 600;
+            color: #1f4fd8;
+            margin-top: 6px;
+        }
+
+        .tagline{
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        .quote-info{
+            text-align: right;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .divider{
+            border: none;
+            border-top: 1px solid #dbe3f0;
+            margin: 8px 0 14px;
+        }
+
+        /* ===== PRODUCT TITLE ===== */
+        .product-title {
+            font-size: 14.5px;
+            font-weight: 600;
+            text-align: center;
+            margin: 10px 0 14px;
+        }
+
+        /* ===== SECTIONS ===== */
+        .box{
+            border: 1px solid #dbe3f0;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .box h3{
+            margin: 0 0 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        table{
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td{
+            padding: 7px 8px;
+            border-bottom: 1px solid #e6edf7;
+        }
+
+        th{
+            background: #f4f7fc;
+            text-align: left;
+            width: 40%;
+            font-weight: 700;
+        }
+
+        .amount{
+            text-align: right;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .total td {
+            font-weight: 800;          /* make it clearly bold */
+            color: #0a5cff;            /* Trust Insurance blue */
+            border-top: 2px solid #2f6bff;
+            padding-top: 8px;
+        }
+
+
+        /* ===== TERMS ===== */
+        .terms{
+            margin-top: 14px;
+            border: 1px solid #e6ebf3;
+            background: #fafcff;
+            padding: 10px;
+        }
+
+        .terms ul{
+            margin: 0;
+            padding-left: 16px;
+            font-size: 10px;
+            line-height: 1.6;
+            color:#4a5a75;
+        }
+
+        .footer{
+            font-size: 9px;
+            color: #6f7f99;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- ================= HEADER ================= -->
+<div class="header-wrap">
+    <table class="header-table">
+        <tr>
+            <td style="width:68%;">
+                <img th:if="${logoBase64 != null and logoBase64 != ''}"
+                     th:src="${logoBase64}" class="logo"/>
+
+                <div class="company-name brand-primary">Trust Insurance</div>
+                <div class="tagline brand-muted">SECURE YOUR FUTURE</div>
+            </td>
+
+            <td class="quote-info">
+                <b>Quotation No:</b> <span th:text="${quotationNo}"></span><br/>
+                <b>Date:</b> <span th:text="${issueDate}"></span><br/>
+                <b>Valid Until:</b> <span th:text="${validUntil}"></span>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<hr class="divider"/>
+
+<!-- ================= PRODUCT TITLE ================= -->
+<div class="product-title">Life Insurance Quotation</div>
+
+<!-- ================= LIFE PROFILE ================= -->
+<div class="box">
+    <h3>Life Profile</h3>
+    <table>
+        <tr><th>Name</th><td th:text="${customerName}"></td></tr>
+        <tr><th>Age</th><td th:text="${profile.age}"></td></tr>
+        <tr><th>Gender</th><td th:text="${profile.gender}"></td></tr>
+        <tr><th>Smoker</th><td th:text="${profile.smoker_status}"></td></tr>
+        <tr><th>Monthly Income</th>
+            <td th:text="${currency+' '+profile.income}"></td></tr>
+    </table>
+</div>
+
+<!-- ================= PREMIUM SUMMARY ================= -->
+<div class="box" th:if="${coverageItems != null and #lists.size(coverageItems) > 0}">
+    <h3>Premium Summary</h3>
+
+    <table>
+        <tr th:each="item : ${coverageItems}">
+            <td th:text="${item.label}"></td>
+            <td class="amount" th:text="${currency+' '+item.amount}"></td>
+        </tr>
+
+        <tr class="total">
+            <td>Total Monthly Premium</td>
+            <td class="amount" th:text="${currency+' '+totalPremium}"></td>
+        </tr>
+    </table>
+</div>
+
+
+
+<!-- ================= TERMS ================= -->
+<div class="terms">
+    <h3>Terms &amp; Conditions</h3>
+    <ul>
+        <li>This quotation is valid for fourteen (14) days from the issue date.</li>
+        <li>Cover is subject to underwriting approval and receipt of full premium payment.</li>
+        <li>Life Insurance benefits are payable subject to policy terms and exclusions.</li>
+        <li>Non-disclosure or misrepresentation may render this quotation invalid.</li>
+        <li>The insurer reserves the right to amend terms or premium after assessment.</li>
+    </ul>
+</div>
+
+<div class="footer">
+    Risk Score: <span th:text="${riskScore}"></span>/100<br/>
+    This quotation does not constitute a binding contract of insurance.
+</div>
+
+</body>
+</html>

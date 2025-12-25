@@ -1,18 +1,26 @@
 package insurance_package.service;
 
-import insurance_package.model.CoverageItem;
-import insurance_package.model.PremiumBreakdown;
-import insurance_package.model.PremiumResult;
+import jakarta.activation.DataHandler;
+import jakarta.activation.FileDataSource;
+import jakarta.mail.Message;
+import jakarta.mail.Multipart;
+import jakarta.mail.Session;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeBodyPart;
+import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.*;
 
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.util.Properties;
 
 @Service
 @RequiredArgsConstructor
@@ -22,122 +30,88 @@ public class AwsEmailService {
 
     private final SesClient sesClient;
 
-    @Value("${aws.ses.fromAddress:no-reply@example.com}")
+    @Value("${aws.ses.fromAddress:no-reply@trustinsurance.com}")
     private String fromAddress;
 
-    // =======================
-    // SEND EMAIL (SES)
-    // =======================
+    // -----------------------
+    // Simple HTML email
+    // -----------------------
     public void sendQuoteEmail(String to, String subject, String htmlBody) {
 
+        Destination destination = Destination.builder()
+                .toAddresses(to)
+                .build();
+
+        Content subjectContent = Content.builder()
+                .data(subject)
+                .charset("UTF-8")
+                .build();
+
+        Content htmlContent = Content.builder()
+                .data(htmlBody)
+                .charset("UTF-8")
+                .build();
+
+        Body body = Body.builder().html(htmlContent).build();
+
+        software.amazon.awssdk.services.ses.model.Message sesMessage =
+                software.amazon.awssdk.services.ses.model.Message.builder()
+                        .subject(subjectContent)
+                        .body(body)
+                        .build();
+
+        SendEmailRequest request = SendEmailRequest.builder()
+                .source(fromAddress)
+                .destination(destination)
+                .message(sesMessage)
+                .build();
+
+        sesClient.sendEmail(request);
+    }
+
+    // -----------------------
+    // Email with PDF attachment
+    // -----------------------
+    public void sendQuoteEmailWithAttachment(
+            String to,
+            String subject,
+            String htmlBody,
+            File pdfFile
+    ) {
         try {
-            Destination destination = Destination.builder()
-                    .toAddresses(to)
+            MimeMessage message = new MimeMessage(Session.getDefaultInstance(new Properties()));
+            message.setFrom(new InternetAddress(fromAddress));
+            message.setRecipients(Message.RecipientType.TO, to);
+            message.setSubject(subject);
+
+            // Body
+            MimeBodyPart htmlPart = new MimeBodyPart();
+            htmlPart.setContent(htmlBody, "text/html; charset=UTF-8");
+
+            // Attachment
+            MimeBodyPart attachment = new MimeBodyPart();
+            attachment.attachFile(pdfFile);
+
+            Multipart multipart = new MimeMultipart();
+            multipart.addBodyPart(htmlPart);
+            multipart.addBodyPart(attachment);
+
+            message.setContent(multipart);
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            message.writeTo(baos);
+
+            SendRawEmailRequest request = SendRawEmailRequest.builder()
+                    .rawMessage(RawMessage.builder()
+                            .data(SdkBytes.fromByteArray(baos.toByteArray()))
+                            .build())
                     .build();
 
-            Content subjectContent = Content.builder()
-                    .data(subject)
-                    .charset("UTF-8")
-                    .build();
-
-            Content htmlContent = Content.builder()
-                    .data(htmlBody)
-                    .charset("UTF-8")
-                    .build();
-
-            Body body = Body.builder()
-                    .html(htmlContent)
-                    .build();
-
-            Message message = Message.builder()
-                    .subject(subjectContent)
-                    .body(body)
-                    .build();
-
-            SendEmailRequest request = SendEmailRequest.builder()
-                    .source(fromAddress)
-                    .destination(destination)
-                    .message(message)
-                    .build();
-
-            SendEmailResponse response = sesClient.sendEmail(request);
-
-            log.info("SES email sent successfully. MessageId={}", response.messageId());
-
-        } catch (MessageRejectedException e) {
-            log.error("SES rejected the message. Verify email addresses. {}", e.awsErrorDetails().errorMessage());
-        } catch (SesException e) {
-            log.error("SES error: {}", e.awsErrorDetails().errorMessage());
-        } catch (Exception e) {
-            log.error("Unexpected error while sending SES email", e);
-        }
-    }
-
-    // =======================
-    // Build Coverage Rows
-    // =======================
-    private String buildCoverageRows(PremiumBreakdown breakdown) {
-        StringBuilder sb = new StringBuilder();
-        for (CoverageItem item : breakdown.getItems()) {
-            sb.append("<tr>")
-                    .append("<td>").append(item.getLabel()).append("</td>")
-                    .append("<td style='text-align:right'>")
-                    .append(String.format("%.2f", item.getAmount()))
-                    .append("</td>")
-                    .append("</tr>");
-        }
-        return sb.toString();
-    }
-
-    // =======================
-    // Load HTML Template
-    // =======================
-    private String loadTemplate(String filename) {
-
-        try (InputStream is = getClass()
-                .getClassLoader()
-                .getResourceAsStream("templates/" + filename)) {
-
-            if (is == null) {
-                throw new IllegalStateException("Email template not found: " + filename);
-            }
-
-            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            sesClient.sendRawEmail(request);
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load email template: " + filename, e);
+            throw new RuntimeException("Failed to send email with attachment", e);
         }
     }
 
-    // =======================
-    // Build Full Quotation Email
-    // =======================
-    public String buildQuotationEmailHtml(
-            String customerName,
-            String insurerName,
-            String vehicleDescription,
-            String plateNo,
-            String usage,
-            String region,
-            double ncdPercent,
-            PremiumResult result) {
-
-        PremiumBreakdown breakdown = result.getBreakdown();
-
-        String template = loadTemplate("quote.html");
-
-        return template
-                .replace("${customerName}", customerName)
-                .replace("${insurerName}", insurerName)
-                .replace("${vehicleDescription}", vehicleDescription)
-                .replace("${plateNo}", plateNo)
-                .replace("${usage}", usage)
-                .replace("${region}", region)
-                .replace("${sumInsured}", String.format("%.2f", breakdown.getSumInsured()))
-                .replace("${currency}", breakdown.getCurrency())
-                .replace("${ncdPercent}", String.format("%.2f", ncdPercent))
-                .replace("${coverageRows}", buildCoverageRows(breakdown))
-                .replace("${totalPremium}", String.format("%.2f", breakdown.getTotalPremium()))
-                .replace("${contactNumber}", "+95-XXX-XXX-XXX");
-    }
 }

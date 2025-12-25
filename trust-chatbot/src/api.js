@@ -1,74 +1,39 @@
 import axios from "axios";
 
-const API_URL =
-    "https://k72m5zhm28.execute-api.us-east-1.amazonaws.com/chatbot";
+// Base backend URL only
+const API_BASE = process.env.VUE_APP_API_URL || "http://localhost:8080";
 
-/**
- * Send a normal chat message
- */
 export async function sendMessage(sessionId, message) {
     try {
-        const res = await axios.post(
-            API_URL,
-            {
-                sessionId: sessionId,
-                message: message
-            },
-            {
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
-        );
+        const res = await axios.post(`${API_BASE}/chatbot`, {
+            sessionId,
+            message
+        });
 
-        // ✅ NORMALIZED RESPONSE
+        // API Gateway style (Lambda proxy)
+        if (res.data?.body) {
+            const parsed = typeof res.data.body === "string"
+                ? JSON.parse(res.data.body)
+                : res.data.body;
+
+            return {
+                sessionId: parsed.sessionId,
+                reply: parsed.reply,
+                shouldEndSession: parsed.shouldEndSession || false
+            };
+        }
+
+        // Direct Spring Boot response
         return {
             sessionId: res.data.sessionId,
             reply: res.data.reply,
             shouldEndSession: res.data.shouldEndSession || false
         };
 
-    } catch (error) {
-        console.error("Chatbot API error:", error);
-
+    } catch (err) {
+        console.error("API ERROR:", err);
         return {
-            error: true,
-            reply: "I didn't receive any reply from the server."
-        };
-    }
-}
-
-/**
- * Confirm sending quotation (optional future use)
- */
-export async function confirmSend(sessionId) {
-    try {
-        const res = await axios.post(
-            API_URL,
-            {
-                sessionId: sessionId,
-                message: "confirm"
-            },
-            {
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
-        );
-
-        // ✅ SAME NORMALIZED RESPONSE
-        return {
-            sessionId: res.data.sessionId,
-            reply: res.data.reply,
-            shouldEndSession: res.data.shouldEndSession || false
-        };
-
-    } catch (error) {
-        console.error("Confirm send error:", error);
-
-        return {
-            error: true,
-            reply: "Unable to confirm quotation at the moment."
+            reply: "⚠️ Backend not reachable."
         };
     }
 }

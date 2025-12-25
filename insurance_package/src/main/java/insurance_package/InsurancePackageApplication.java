@@ -28,16 +28,18 @@ public class InsurancePackageApplication {
             log.info("Insurance Package Application Initialized");
 
             log.info("Users:");
-            users.findAll().forEach(u -> log.info("- {}", u));   // no getters
+            users.findAll().forEach(u -> log.info("- {}", u));
 
             log.info("Products:");
-            products.findAll().forEach(p -> log.info("- {}", p)); // no getters
+            products.findAll().forEach(p -> log.info("- {}", p));
 
-            log.info("Quotations:");
-            quotations.findAll().forEach(q -> log.info("- {}", q)); // no getters
 
-            log.info("Data printed successfully!");
+            // log.info("Quotations:");
+            // quotations.findAll().forEach(q -> log.info("- {}", q));
+
+            log.info("Startup data loaded successfully!");
         };
     }
+
 
 }

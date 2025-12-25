@@ -3,7 +3,48 @@
 
     <!-- NAVBAR -->
     <header class="nav">
-      <img class="logo" src="@/assets/logo.png" alt="Trust Insurance" />
+      <div class="logo">
+        <!-- Trust Insurance SVG -->
+        <svg width="160" height="48" viewBox="0 0 260 64"
+             xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="trustGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#0A5CFF"/>
+              <stop offset="100%" stop-color="#00A6C8"/>
+            </linearGradient>
+          </defs>
+
+          <path d="M32 6 L52 14 V30
+             C52 42 42 52 32 56
+             C22 52 12 42 12 30
+             V14 Z"
+                fill="url(#trustGrad)"/>
+
+          <path d="M24 30 L30 36 L40 24"
+                fill="none"
+                stroke="#FFFFFF"
+                stroke-width="3.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"/>
+
+          <text x="70" y="34"
+                font-family="Arial"
+                font-size="22"
+                font-weight="700"
+                fill="#0B1B3A">
+            Trust Insurance
+          </text>
+
+          <text x="70" y="52"
+                font-family="Arial"
+                font-size="11"
+                letter-spacing="1.4"
+                fill="#0A5CFF">
+            SECURE YOUR FUTURE
+          </text>
+        </svg>
+      </div>
+
       <h1 class="brand">Trust Insurance</h1>
     </header>
 

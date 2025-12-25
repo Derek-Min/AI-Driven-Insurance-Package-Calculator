@@ -6,20 +6,17 @@
     </div>
 
     <div class="chat-box" ref="chatBox">
-
-      <div v-for="(msg, index) in messages" :key="index"
-           :class="['chat-message', msg.sender]">
-
+      <div
+          v-for="(msg, index) in messages"
+          :key="index"
+          :class="['chat-message', msg.sender]"
+      >
         <div class="bubble">{{ msg.text }}</div>
-
       </div>
 
       <div v-if="loading" class="loading">
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
+        <span>.</span><span>.</span><span>.</span>
       </div>
-
     </div>
 
     <div class="chat-input">
@@ -28,154 +25,115 @@
           @keyup.enter="send"
           placeholder="Type your message..."
       />
-
       <button @click="send">Send</button>
     </div>
   </div>
 </template>
 
-
 <script>
-//import { sendMessage, confirmSend } from "../api";
 import * as api from "../api";
-console.log("API MODULE:", api);
-
 
 export default {
+  name: "ChatBot",
+
   data() {
     return {
-      sessionId: localStorage.getItem("trust_session_id") || this.generateId(),
+      sessionId: localStorage.getItem("trust_session_id"),
       userInput: "",
       messages: [],
-      loading: false,
+      loading: false
     };
   },
 
   mounted() {
-    this.saveSession();
+    // Initial greeting (optional but recommended)
+    if (this.messages.length === 0) {
+      this.messages.push({
+        sender: "bot",
+        text: "👋 Welcome! Do you want Motor or Life insurance?"
+      });
+    }
   },
 
   methods: {
-    generateId() {
-      return "session-" + Math.random().toString(36).substring(2, 12);
-    },
-
-    saveSession() {
-      localStorage.setItem("trust_session_id", this.sessionId);
-    },
-
     async send() {
       const text = this.userInput.trim();
       if (!text) return;
 
-      // Show user message
       this.messages.push({ sender: "user", text });
       this.userInput = "";
+      this.loading = true;
       this.scrollToBottom();
 
-      this.loading = true;
-
       try {
-        let response;
+        const response = await api.sendMessage(this.sessionId, text);
 
-        // Detect confirm keywords
-        if (/^(yes|send|confirm)$/i.test(text)) {
-          response = await api.confirmSend(this.sessionId);
-        } else {
-          response = await api.sendMessage(this.sessionId, text);
+        if (response.sessionId) {
+          this.sessionId = response.sessionId;
+          localStorage.setItem("trust_session_id", this.sessionId);
         }
-
-        console.log("Raw chatbot response:", response);
-
-        // ✅ EXPECT NEW NORMALIZED FORMAT
-        // { sessionId, reply, shouldEndSession }
-        if (!response || !response.reply) {
-          this.messages.push({
-            sender: "bot",
-            text: "❗ I didn't receive any reply from the server."
-          });
-        } else {
-          this.messages.push({
-            sender: "bot",
-            text: response.reply
-          });
-
-          // keep session in sync
-          if (response.sessionId) {
-            this.sessionId = response.sessionId;
-            this.saveSession();
-          }
-        }
-
-      } catch (err) {
-        console.error("Chat error:", err);
 
         this.messages.push({
           sender: "bot",
-          text: "❗ Something went wrong. Please try again."
+          text: response.reply || "⚠️ No response from server."
+        });
+
+      } catch (e) {
+        console.error(e);
+        this.messages.push({
+          sender: "bot",
+          text: "❗ Server error. Please try again."
         });
       }
 
       this.loading = false;
       this.scrollToBottom();
-    }
-    ,
+    },
 
     scrollToBottom() {
       this.$nextTick(() => {
         const box = this.$refs.chatBox;
-        if (box) {
-          box.scrollTop = box.scrollHeight;
-        }
+        if (box) box.scrollTop = box.scrollHeight;
       });
     }
   }
 };
-
 </script>
-
-
 
 <style scoped>
 .chat-container {
-  width: 380px;
-  height: 600px;
+  width: 360px;
+  height: 540px;
   border-radius: 14px;
   display: flex;
   flex-direction: column;
   background: #ffffff;
   border: 1px solid #e0e0e0;
-  overflow: hidden;
-  font-family: "Inter", sans-serif;
+  font-family: Arial, sans-serif;
 }
 
-/* HEADER */
 .chat-header {
   background: #0a5cff;
-  color: white;
-  padding: 18px;
+  color: #ffffff;
+  padding: 16px;
   text-align: center;
 }
-.chat-header h3 {
-  margin: 0;
-}
+
 .tagline {
   font-size: 12px;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
-/* CHAT BOX */
 .chat-box {
   flex: 1;
-  padding: 15px;
+  padding: 12px;
   overflow-y: auto;
   background: #f7f9fc;
 }
 
-/* MESSAGES */
 .chat-message {
   display: flex;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .chat-message.user {
@@ -191,7 +149,6 @@ export default {
   padding: 10px 14px;
   border-radius: 16px;
   font-size: 14px;
-  line-height: 1.4;
 }
 
 .user .bubble {
@@ -206,46 +163,31 @@ export default {
   border-bottom-left-radius: 4px;
 }
 
-/* LOADING DOTS */
-.loading {
-  display: flex;
-  gap: 6px;
-  margin-left: 10px;
-}
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #999;
-  animation: bounce 1.2s infinite;
-}
-.dot:nth-child(2) { animation-delay: 0.2s; }
-.dot:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes bounce {
-  0%, 80%, 100% { transform: scale(0.5); opacity: 0.6; }
-  40% { transform: scale(1.1); opacity: 1; }
-}
-
-/* INPUT BAR */
 .chat-input {
   display: flex;
-  padding: 12px;
-  gap: 10px;
+  padding: 10px;
+  gap: 8px;
   border-top: 1px solid #ddd;
 }
+
 .chat-input input {
   flex: 1;
   padding: 10px;
   border-radius: 6px;
   border: 1px solid #ccc;
 }
+
 .chat-input button {
   background: #0a5cff;
   color: white;
-  padding: 10px 16px;
+  padding: 10px 14px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+}
+
+.loading {
+  font-size: 20px;
+  color: #999;
 }
 </style>
