@@ -2,55 +2,129 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8"/>
-  <title>Life Insurance Quotation</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Trust Insurance – Life Insurance Quotation</title>
 
   <style>
-    body { font-family: Arial, sans-serif; font-size: 13px; color:#0b1b3a; margin:0; padding:0; }
-    .wrap { max-width: 720px; margin: 0 auto; padding: 18px; }
-    .top { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
-    .brand { display:flex; gap:12px; align-items:center; }
-    .brand h1 { margin:0; font-size:18px; }
-    .brand p { margin:2px 0 0; font-size:11px; color:#50607a; letter-spacing:1px; }
-    .meta { text-align:right; font-size:11px; color:#50607a; }
-    .banner { margin:14px 0; padding:10px 12px; background:#0A5CFF; color:#fff; border-radius:10px; font-size:11px; }
-    .box { border:1px solid #e6ebf3; border-radius:10px; padding:12px; margin-top:12px; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { padding:8px; border-bottom:1px solid #eef2f8; text-align:left; }
-    th { background:#fafcff; color:#50607a; width:38%; }
-    .total td { font-weight:800; border-top:2px solid #0a5cff; }
-    .small { font-size:10px; color:#60708a; line-height:1.5; }
+    /* Email-safe resets */
+    body { margin:0; padding:0; background:#f3f6fb; font-family: Arial, sans-serif; color:#0b1b3a; }
+    table { border-collapse:collapse; }
+    img { border:0; outline:none; text-decoration:none; display:block; }
+    a { color:inherit; text-decoration:none; }
+
+    .wrap { width:100%; padding:24px 12px; }
+    .card { max-width:720px; margin:0 auto; background:#ffffff; border:1px solid #e6ebf3; border-radius:14px; overflow:hidden; }
+    .header { padding:18px 20px; background:#ffffff; }
+    .brandRow { width:100%; }
+    .logoCell { width:110px; vertical-align:top; }
+    .titleCell { vertical-align:top; }
+    .company { margin:0; font-size:18px; font-weight:700; color:#0b1b3a; }
+    .tagline { margin:4px 0 0; font-size:12px; color:#50607a; letter-spacing:0.6px; }
+
+    .banner { padding:12px 20px; background:linear-gradient(90deg,#0A5CFF,#00A6C8); color:#ffffff; }
+    .bannerTitle { margin:0; font-size:13px; font-weight:700; }
+    .bannerSub { margin:4px 0 0; font-size:12px; opacity:0.95; }
+
+    .body { padding:18px 20px; }
+    .greet { margin:0 0 10px; font-size:14px; color:#0b1b3a; }
+    .text { margin:0 0 14px; color:#22324d; line-height:1.6; font-size:13px; }
+
+    .box { border:1px solid #e6ebf3; border-radius:12px; padding:14px; margin:12px 0; background:#ffffff; }
+    .boxTitle { margin:0 0 10px; font-size:13px; color:#0b1b3a; font-weight:700; }
+
+    .kv { width:100%; }
+    .kv td { padding:9px 8px; border-bottom:1px solid #eef2f8; font-size:13px; vertical-align:top; }
+    .kv .k { width:42%; color:#50607a; background:#fafcff; font-weight:700; }
+    .kv .v { color:#0b1b3a; font-weight:600; }
+
+    .totalRow .v { font-weight:800; }
+    .pill { display:inline-block; padding:2px 10px; border-radius:999px; background:#eef4ff; color:#0a5cff; font-size:11px; font-weight:700; }
+
+    .note { margin:12px 0 0; font-size:11px; color:#60708a; line-height:1.55; }
+    .footer { padding:14px 20px; background:#fafcff; border-top:1px solid #e6ebf3; }
+    .footerText { margin:0; font-size:11px; color:#60708a; line-height:1.55; }
   </style>
 </head>
 
+<body>
+<div class="wrap">
+  <table class="card" width="100%" role="presentation" cellspacing="0" cellpadding="0">
+    <!-- Header -->
+    <tr>
+      <td class="header">
+        <table class="brandRow" width="100%" role="presentation" cellspacing="0" cellpadding="0">
+          <tr>
+            <td class="logoCell">
+              <img th:src="'data:image/png;base64,' + ${logoBase64}" width="90" alt="Trust Insurance Logo"/>
+            </td>
+            <td class="titleCell">
+              <p class="company">Trust Insurance</p>
+              <p class="tagline">Secure your future</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
 
-<body style="font-family:Arial,sans-serif;color:#1f2a44;">
+    <!-- Banner -->
+    <tr>
+      <td class="banner">
+        <p class="bannerTitle">Life Insurance Quotation</p>
+        <p class="bannerSub">Your quotation PDF is attached for full coverage and premium details.</p>
+      </td>
+    </tr>
 
-<img src="trust-chatbot/src/assets/logo.png" width="90"/>
+    <!-- Body -->
+    <tr>
+      <td class="body">
+        <p class="greet">
+          Dear <b th:text="${customerName}">Customer</b>,
+        </p>
 
-<h2>Trust Insurance</h2>
-<p>Secure your future</p>
+        <p class="text">
+          Thank you for choosing <b>Trust Insurance</b>. We are pleased to share your
+          <b>Life Insurance quotation</b>. Please review the attached PDF for the complete breakdown.
+        </p>
 
-<p>Dear <b th:text="${customerName}"></b>,</p>
+        <div class="box">
+          <p class="boxTitle">
+            Quotation Summary <span class="pill">Valid 14 days</span>
+          </p>
 
-<p>
-  We are pleased to provide your <b>Life Insurance quotation</b>.
-  Please review the attached PDF for premium and coverage details.
-</p>
+          <table class="kv" width="100%" role="presentation" cellspacing="0" cellpadding="0">
+            <tr class="totalRow">
+              <td class="k"><b>Total Monthly Premium</b></td>
+              <td class="v"><b th:text="${currency+' '+totalPremium}">MYR 0.00</b></td>
+            </tr>
+            <tr>
+              <td class="k"><b>Risk Score</b></td>
+              <td class="v" th:text="${riskScore}">0</td>
+            </tr>
+          </table>
 
-<table cellpadding="6">
-  <tr><td><b>Total Monthly Premium</b></td><td th:text="${currency+' '+totalPremium}"></td></tr>
-  <tr><td><b>Risk Score</b></td><td th:text="${riskScore}"></td></tr>
-</table>
+          <p class="note">
+            This quotation is subject to underwriting approval. Premiums may change if additional
+            information is required during assessment.
+          </p>
+        </div>
 
-<p style="font-size:12px;color:#6f7f99;">
-  Quotation valid for 14 days and subject to underwriting approval.
-</p>
+        <p class="text" style="margin-top:14px;">
+          Warm regards,<br/>
+          <b>Trust Insurance</b>
+        </p>
+      </td>
+    </tr>
 
-<p>
-  Warm regards,<br/>
-  <b>Trust Insurance</b>
-</p>
-
+    <!-- Footer -->
+    <tr>
+      <td class="footer">
+        <p class="footerText">
+          Disclaimer: This email is for quotation purposes only and does not constitute a binding contract of insurance.
+          Please refer to the attached PDF for details, terms, and conditions.
+        </p>
+      </td>
+    </tr>
+  </table>
+</div>
 </body>
-
 </html>

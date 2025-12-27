@@ -1,31 +1,44 @@
 <template>
-  <div class="chat-container">
+  <div class="chat-wrapper">
+    <!-- CHAT HEADER -->
     <div class="chat-header">
-      <h3>Trust Insurance Assistant</h3>
-      <p class="tagline">Secure your future</p>
+      <div class="brand">
+        <img src="/logo.png" alt="Trust Insurance" class="logo" />
+        <div>
+          <h3>Trust Insurance Assistant</h3>
+          <p>Secure your future</p>
+        </div>
+      </div>
+      <button class="exit" @click="$emit('exitChat')">✕</button>
     </div>
 
-    <div class="chat-box" ref="chatBox">
+    <!-- CHAT BODY -->
+    <div class="chat-body" ref="chatBox">
       <div
           v-for="(msg, index) in messages"
           :key="index"
-          :class="['chat-message', msg.sender]"
+          :class="['msg', msg.sender]"
       >
         <div class="bubble">{{ msg.text }}</div>
       </div>
 
-      <div v-if="loading" class="loading">
-        <span>.</span><span>.</span><span>.</span>
+      <div v-if="loading" class="typing">
+        TrustBot is typing<span>.</span><span>.</span><span>.</span>
       </div>
     </div>
 
+    <!-- CHAT INPUT -->
     <div class="chat-input">
       <input
           v-model="userInput"
-          @keyup.enter="send"
           placeholder="Type your message..."
+          @keyup.enter="send"
+          :disabled="loading || ended"
       />
-      <button @click="send">Send</button>
+      <button @click="send" :disabled="loading || ended">Send</button>
+      <button class="restart" @click="restart" :disabled="loading">
+        Restart
+      </button>
     </div>
   </div>
 </template>
@@ -38,59 +51,94 @@ export default {
 
   data() {
     return {
-      sessionId: localStorage.getItem("trust_session_id"),
+      sessionId: localStorage.getItem("trust_session_id") || null,
       userInput: "",
       messages: [],
-      loading: false
+      loading: false,
+      ended: false
     };
   },
 
   mounted() {
-    // Initial greeting (optional but recommended)
-    if (this.messages.length === 0) {
-      this.messages.push({
-        sender: "bot",
-        text: "👋 Welcome! Do you want Motor or Life insurance?"
-      });
-    }
+    // First ping so Lambda sends the welcome message
+    this.sendInitial();
   },
 
   methods: {
+    async sendInitial() {
+      if (this.messages.length > 0) return;
+
+      this.loading = true;
+      try {
+        const response = await api.sendMessage(this.sessionId, "");
+        if (response?.sessionId) {
+          this.sessionId = response.sessionId;
+          localStorage.setItem("trust_session_id", this.sessionId);
+        }
+        response?.messages?.forEach(m =>
+            this.messages.push({ sender: "bot", text: m })
+        );
+      } finally {
+        this.loading = false;
+        this.scrollChatToBottom();
+      }
+    },
+
     async send() {
       const text = this.userInput.trim();
-      if (!text) return;
+      if (!text || this.loading || this.ended) return;
 
       this.messages.push({ sender: "user", text });
       this.userInput = "";
       this.loading = true;
-      this.scrollToBottom();
+      this.scrollChatToBottom();
 
       try {
         const response = await api.sendMessage(this.sessionId, text);
 
-        if (response.sessionId) {
+        if (response?.sessionId) {
           this.sessionId = response.sessionId;
           localStorage.setItem("trust_session_id", this.sessionId);
         }
 
-        this.messages.push({
-          sender: "bot",
-          text: response.reply || "⚠️ No response from server."
-        });
+        response?.messages?.forEach(m =>
+            this.messages.push({ sender: "bot", text: m })
+        );
 
+        if (response?.endSession) {
+          this.ended = true;
+          this.messages.push({
+            sender: "bot",
+            text: "✅ Session completed. Click Restart to start again."
+          });
+        }
       } catch (e) {
-        console.error(e);
         this.messages.push({
           sender: "bot",
-          text: "❗ Server error. Please try again."
+          text: "❗ Something went wrong. Please try again."
         });
+      } finally {
+        this.loading = false;
+        this.scrollChatToBottom();
       }
-
-      this.loading = false;
-      this.scrollToBottom();
     },
 
-    scrollToBottom() {
+    async restart() {
+      try {
+        await api.sendMessage(this.sessionId, "restart");
+      } catch (e) {
+        console.warn("Restart failed, resetting locally.", e);
+      }
+
+      localStorage.removeItem("trust_session_id");
+      this.sessionId = null;
+      this.messages = [];
+      this.ended = false;
+
+      this.sendInitial();
+    },
+
+    scrollChatToBottom() {
       this.$nextTick(() => {
         const box = this.$refs.chatBox;
         if (box) box.scrollTop = box.scrollHeight;
@@ -101,93 +149,116 @@ export default {
 </script>
 
 <style scoped>
-.chat-container {
-  width: 360px;
-  height: 540px;
+.chat-wrapper {
+  max-width: 420px;
+  margin: 40px auto;
+  background: #ffffff;
   border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  font-family: Arial, sans-serif;
+  overflow: hidden;
+  font-family: "Inter", Arial, sans-serif;
 }
 
+/* HEADER */
 .chat-header {
-  background: #0a5cff;
+  background: linear-gradient(90deg, #0a5cff, #00a6c8);
   color: #ffffff;
-  padding: 16px;
-  text-align: center;
-}
-
-.tagline {
-  font-size: 12px;
-  opacity: 0.85;
-}
-
-.chat-box {
-  flex: 1;
-  padding: 12px;
-  overflow-y: auto;
-  background: #f7f9fc;
-}
-
-.chat-message {
+  padding: 14px 16px;
   display: flex;
-  margin-bottom: 10px;
+  justify-content: space-between;
+  align-items: center;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo {
+  height: 38px;
+}
+.chat-header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.chat-header p {
+  margin: 0;
+  font-size: 11px;
+  opacity: 0.9;
+}
+.exit {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
 }
 
-.chat-message.user {
+/* BODY */
+.chat-body {
+  flex: 1;
+  padding: 14px;
+  background: #f7f9fc;
+  overflow-y: auto;
+}
+.msg {
+  margin-bottom: 10px;
+  display: flex;
+}
+.msg.user {
   justify-content: flex-end;
 }
-
-.chat-message.bot {
+.msg.bot {
   justify-content: flex-start;
 }
-
 .bubble {
-  max-width: 70%;
+  max-width: 75%;
   padding: 10px 14px;
   border-radius: 16px;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.45;
 }
-
-.user .bubble {
+.msg.user .bubble {
   background: #0a5cff;
   color: white;
   border-bottom-right-radius: 4px;
 }
-
-.bot .bubble {
-  background: #e8e8e8;
-  color: #000;
+.msg.bot .bubble {
+  background: #e9edf5;
+  color: #0b1b3a;
   border-bottom-left-radius: 4px;
 }
-
-.chat-input {
-  display: flex;
-  padding: 10px;
-  gap: 8px;
-  border-top: 1px solid #ddd;
+.typing {
+  font-size: 12px;
+  color: #6b7a90;
 }
 
+/* INPUT */
+.chat-input {
+  padding: 10px;
+  border-top: 1px solid #e0e6ef;
+  display: flex;
+  gap: 6px;
+}
 .chat-input input {
   flex: 1;
   padding: 10px;
   border-radius: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid #ccd6e0;
 }
-
 .chat-input button {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: none;
   background: #0a5cff;
   color: white;
-  padding: 10px 14px;
-  border: none;
-  border-radius: 6px;
   cursor: pointer;
 }
-
-.loading {
-  font-size: 20px;
-  color: #999;
+.chat-input button:disabled {
+  opacity: 0.6;
+}
+.restart {
+  background: #6c757d;
 }
 </style>

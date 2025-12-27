@@ -95,26 +95,8 @@ public class AwsChatbotService {
             // -----------------------------
             // 4) Normalize output to frontend
             // -----------------------------
-            Map<String, Object> clean = new HashMap<>();
-
-            // sessionId may come from lambda or fallback to original
-            Object sid = parsed.get("sessionId");
-            clean.put("sessionId", sid != null ? sid : payload.get("sessionId"));
-
-            clean.put("reply", parsed.getOrDefault("reply", "⚠️ No reply from chatbot."));
-            clean.put("shouldEndSession", parsed.getOrDefault("shouldEndSession", false));
-
-            // ✅ pass through extra so controller can processQuotation()
-            if (parsed.containsKey("extra")) {
-                clean.put("extra", parsed.get("extra"));
-            }
-
-            // (optional) pass messages array if you want to display multi-line later
-            if (parsed.containsKey("messages")) {
-                clean.put("messages", parsed.get("messages"));
-            }
-
-            return clean;
+            parsed.putIfAbsent("sessionId", payload.get("sessionId"));
+            return parsed;
 
         } catch (Exception e) {
             e.printStackTrace();

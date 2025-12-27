@@ -13,23 +13,27 @@ public class ChatbotController {
 
     private final AwsChatbotService chatbotService;
 
-    // Frontend calls THIS endpoint
     @PostMapping("/chatbot")
     public Map<String, Object> ask(@RequestBody Map<String, Object> body) {
 
+        // ✅ Lambda response (already correct)
         Map<String, Object> chatbotReply = chatbotService.askChatbot(body);
 
-        Boolean endSession = (Boolean) chatbotReply.get("shouldEndSession");
+        // ✅ FIX: use endSession (NOT shouldEndSession)
+        Boolean endSession = (Boolean) chatbotReply.get("endSession");
 
         if (Boolean.TRUE.equals(endSession)) {
-            // 🔑 get intent + slots from Lambda extra
-            Map<String, Object> extra =
-                    (Map<String, Object>) chatbotReply.get("extra");
 
-            chatbotService.processQuotation(extra);
+            // Optional: only if extra exists
+            Object extraObj = chatbotReply.get("extra");
+            if (extraObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> extra = (Map<String, Object>) extraObj;
+                chatbotService.processQuotation(extra);
+            }
         }
 
+        // ✅ Return Lambda response AS-IS
         return chatbotReply;
     }
-
 }
