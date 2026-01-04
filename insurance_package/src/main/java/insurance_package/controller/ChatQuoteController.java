@@ -6,6 +6,8 @@ import insurance_package.model.Quote;
 import insurance_package.service.PdfQuotationService;
 import insurance_package.service.PricingService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -21,117 +23,144 @@ public class ChatQuoteController {
     private final PricingService pricingService;
     private final PdfQuotationService pdfQuotationService;
 
-    // -------------------------
-    // LIFE
-    // -------------------------
+    // =========================================================
+    // LIFE QUOTATION (FROM CHATBOT / LAMBDA)
+    // =========================================================
     @PostMapping("/life/from-chat")
-    public Map<String, Object> lifeFromChat(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<Map<String, Object>> lifeFromChat(
+            @RequestBody Map<String, Object> payload
+    ) {
+        try {
+            Map<String, Object> slots = extractSlots(payload);
 
-        Map<String, Object> slots = extractSlots(payload);
+            String email = String.valueOf(slots.getOrDefault("email", "")).trim();
+            if (email.isEmpty()) {
+                return error("Email is required");
+            }
 
-        QuotationRequest req = new QuotationRequest();
-        req.setLine("Life");
-        req.setCustomerName(
-                String.valueOf(slots.getOrDefault("customer_name", "Valued Customer"))
-        );
-        req.setEmail(String.valueOf(slots.get("email")));
-        req.setSlots(slots);
+            QuotationRequest req = new QuotationRequest();
+            req.setLine("Life");
+            req.setCustomerName(
+                    String.valueOf(slots.getOrDefault("customer_name", "Valued Customer"))
+            );
+            req.setEmail(email);
+            req.setSlots(slots);
 
-        PremiumResult result = pricingService.calculatePremium(req);
+            PremiumResult result = pricingService.calculatePremium(req);
 
-        // =========================
-        // BUILD QUOTE (FULL DATA)
-        // =========================
-        Quote quote = Quote.builder()
-                .quoteId("Q-" + System.currentTimeMillis())
-                .line("Life")
-                .currency(result.getBreakdown().getCurrency())
-                .customerName(req.getCustomerName())
-                .customerEmail(req.getEmail())
-                .requestDetails(slots)
-                .premiumBreakdown(
-                        Map.of(
-                                "items", result.getBreakdown().getItems(),
-                                "totalPremium", result.getTotalPremium(),
-                                "riskScore", result.getRiskScore(),
-                                "currency", result.getBreakdown().getCurrency()
-                        )
-                )
-                .totalPremium(result.getTotalPremium())
-                .riskScore(result.getRiskScore())
-                .createdAt(Instant.now())
-                .build();
+            Quote quote = Quote.builder()
+                    .quoteId("Q-" + System.currentTimeMillis())
+                    .line("Life")
+                    .currency(result.getBreakdown().getCurrency())
+                    .customerName(req.getCustomerName())
+                    .customerEmail(req.getEmail())
+                    .requestDetails(slots)
+                    .premiumBreakdown(
+                            Map.of(
+                                    "items", result.getBreakdown().getItems(),
+                                    "totalPremium", result.getTotalPremium(),
+                                    "riskScore", result.getRiskScore(),
+                                    "currency", result.getBreakdown().getCurrency()
+                            )
+                    )
+                    .totalPremium(result.getTotalPremium())
+                    .riskScore(result.getRiskScore())
+                    .createdAt(Instant.now())
+                    .build();
 
-        // Generate PDF (optional for life)
-        pdfQuotationService.generateQuotationPdf(quote);
+            // Generate PDF + Send Email (inside service)
+            pdfQuotationService.generateQuotationPdf(quote);
 
-        return Map.of(
-                "ok", true,
-                "premium", result.getTotalPremium(),
-                "riskScore", result.getRiskScore()
-        );
+            return success(quote);
+
+        } catch (Exception ex) {
+            return error("Life quotation failed: " + ex.getMessage());
+        }
     }
 
-    // -------------------------
-    // MOTOR
-    // -------------------------
+    // =========================================================
+    // MOTOR QUOTATION (FROM CHATBOT / LAMBDA)
+    // =========================================================
     @PostMapping("/motor/from-chat")
-    public Map<String, Object> motorFromChat(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<Map<String, Object>> motorFromChat(
+            @RequestBody Map<String, Object> payload
+    ) {
+        try {
+            Map<String, Object> slots = extractSlots(payload);
 
-        Map<String, Object> slots = extractSlots(payload);
+            String email = String.valueOf(slots.getOrDefault("email", "")).trim();
+            if (email.isEmpty()) {
+                return error("Email is required");
+            }
 
-        System.out.println("MOTOR SLOTS = " + slots);
+            QuotationRequest req = new QuotationRequest();
+            req.setLine("Motor");
+            req.setCustomerName(
+                    String.valueOf(slots.getOrDefault("customer_name", "Valued Customer"))
+            );
+            req.setEmail(email);
+            req.setSlots(slots);
 
+            PremiumResult result = pricingService.calculatePremium(req);
 
-        QuotationRequest req = new QuotationRequest();
-        req.setLine("Motor");
-        req.setCustomerName(
-                String.valueOf(slots.getOrDefault("customer_name", "Valued Customer"))
-        );
-        req.setEmail(String.valueOf(slots.get("email")));
-        req.setSlots(slots);
+            Quote quote = Quote.builder()
+                    .quoteId("Q-" + System.currentTimeMillis())
+                    .line("Motor")
+                    .currency(result.getBreakdown().getCurrency())
+                    .customerName(req.getCustomerName())
+                    .customerEmail(req.getEmail())
+                    .requestDetails(slots)
+                    .premiumBreakdown(
+                            Map.of(
+                                    "items", result.getBreakdown().getItems(),
+                                    "totalPremium", result.getTotalPremium(),
+                                    "riskScore", result.getRiskScore(),
+                                    "currency", result.getBreakdown().getCurrency()
+                            )
+                    )
+                    .totalPremium(result.getTotalPremium())
+                    .riskScore(result.getRiskScore())
+                    .createdAt(Instant.now())
+                    .build();
 
-        PremiumResult result = pricingService.calculatePremium(req);
+            // Generate PDF + Send Email (inside service)
+            pdfQuotationService.generateQuotationPdf(quote);
 
-        // =========================
-        // BUILD QUOTE (FULL DATA)
-        // =========================
-        Quote quote = Quote.builder()
-                .quoteId("Q-" + System.currentTimeMillis())
-                .line("Motor")
-                .currency(result.getBreakdown().getCurrency())
-                .customerName(req.getCustomerName())
-                .customerEmail(req.getEmail())
-                .requestDetails(slots)
-                // 🔑 CRITICAL: full breakdown stored here
-                .premiumBreakdown(
-                        Map.of(
-                                "items", result.getBreakdown().getItems(),
-                                "totalPremium", result.getTotalPremium(),
-                                "riskScore", result.getRiskScore(),
-                                "currency", result.getBreakdown().getCurrency()
-                        )
+            return success(quote);
+
+        } catch (Exception ex) {
+            return error("Motor quotation failed: " + ex.getMessage());
+        }
+    }
+
+    // =========================================================
+    // RESPONSE HELPERS
+    // =========================================================
+    private ResponseEntity<Map<String, Object>> success(Quote quote) {
+        return ResponseEntity.ok(
+                Map.of(
+                        "ok", true,
+                        "quoteId", quote.getQuoteId(),
+                        "line", quote.getLine(),
+                        "premium", quote.getTotalPremium(),
+                        "currency", quote.getCurrency(),
+                        "riskScore", quote.getRiskScore()
                 )
-                .totalPremium(result.getTotalPremium())
-                .riskScore(result.getRiskScore())
-                .createdAt(Instant.now())
-                .build();
-        System.out.println("SLOTS = " + slots);
-
-
-        // Generate PDF
-        pdfQuotationService.generateQuotationPdf(quote);
-
-        return Map.of(
-                "ok", true,
-                "premium", result.getTotalPremium(),
-                "riskScore", result.getRiskScore()
         );
     }
 
-    // -------------------------
-    // helpers
-    // -------------------------
+    private ResponseEntity<Map<String, Object>> error(String message) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                Map.of(
+                        "ok", false,
+                        "error", message
+                )
+        );
+    }
+
+    // =========================================================
+    // SLOT EXTRACTION (SAFE & FLEXIBLE)
+    // =========================================================
     @SuppressWarnings("unchecked")
     private Map<String, Object> extractSlots(Map<String, Object> payload) {
         Object slotsObj = payload.get("slots");

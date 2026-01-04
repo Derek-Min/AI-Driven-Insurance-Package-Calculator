@@ -15,25 +15,8 @@ public class ChatbotController {
 
     @PostMapping("/chatbot")
     public Map<String, Object> ask(@RequestBody Map<String, Object> body) {
-
-        // ✅ Lambda response (already correct)
-        Map<String, Object> chatbotReply = chatbotService.askChatbot(body);
-
-        // ✅ FIX: use endSession (NOT shouldEndSession)
-        Boolean endSession = (Boolean) chatbotReply.get("endSession");
-
-        if (Boolean.TRUE.equals(endSession)) {
-
-            // Optional: only if extra exists
-            Object extraObj = chatbotReply.get("extra");
-            if (extraObj instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> extra = (Map<String, Object>) extraObj;
-                chatbotService.processQuotation(extra);
-            }
-        }
-
-        // ✅ Return Lambda response AS-IS
-        return chatbotReply;
+        // Simply forward request to chatbot service
+        // Lambda handles flow + quotation triggering
+        return chatbotService.askChatbot(body);
     }
 }

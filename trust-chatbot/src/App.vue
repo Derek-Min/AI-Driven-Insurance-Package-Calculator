@@ -1,11 +1,9 @@
 <template>
   <div>
-    <!-- Landing Page -->
     <LandingPage v-if="!showChat" @openChat="showChat = true" />
 
-    <!-- Chat Area -->
     <div v-if="showChat" class="chat-screen">
-      <ChatBot />
+      <ChatBot @exitChat="showChat = false" />
     </div>
   </div>
 </template>

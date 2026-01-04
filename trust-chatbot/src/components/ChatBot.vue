@@ -1,6 +1,6 @@
 <template>
   <div class="chat-wrapper">
-    <!-- CHAT HEADER -->
+    <!-- HEADER -->
     <div class="chat-header">
       <div class="brand">
         <img src="/logo.png" alt="Trust Insurance" class="logo" />
@@ -12,7 +12,7 @@
       <button class="exit" @click="$emit('exitChat')">✕</button>
     </div>
 
-    <!-- CHAT BODY -->
+    <!-- BODY -->
     <div class="chat-body" ref="chatBox">
       <div
           v-for="(msg, index) in messages"
@@ -27,7 +27,7 @@
       </div>
     </div>
 
-    <!-- CHAT INPUT -->
+    <!-- INPUT -->
     <div class="chat-input">
       <input
           v-model="userInput"
@@ -53,37 +53,18 @@ export default {
     return {
       sessionId: localStorage.getItem("trust_session_id") || null,
       userInput: "",
-      messages: [],
+      messages: [
+        {
+          sender: "bot",
+          text: "👋 Welcome! Do you want Motor or Life insurance?"
+        }
+      ],
       loading: false,
       ended: false
     };
   },
 
-  mounted() {
-    // First ping so Lambda sends the welcome message
-    this.sendInitial();
-  },
-
   methods: {
-    async sendInitial() {
-      if (this.messages.length > 0) return;
-
-      this.loading = true;
-      try {
-        const response = await api.sendMessage(this.sessionId, "");
-        if (response?.sessionId) {
-          this.sessionId = response.sessionId;
-          localStorage.setItem("trust_session_id", this.sessionId);
-        }
-        response?.messages?.forEach(m =>
-            this.messages.push({ sender: "bot", text: m })
-        );
-      } finally {
-        this.loading = false;
-        this.scrollChatToBottom();
-      }
-    },
-
     async send() {
       const text = this.userInput.trim();
       if (!text || this.loading || this.ended) return;
@@ -112,7 +93,8 @@ export default {
             text: "✅ Session completed. Click Restart to start again."
           });
         }
-      } catch (e) {
+
+      } catch {
         this.messages.push({
           sender: "bot",
           text: "❗ Something went wrong. Please try again."
@@ -126,16 +108,19 @@ export default {
     async restart() {
       try {
         await api.sendMessage(this.sessionId, "restart");
-      } catch (e) {
-        console.warn("Restart failed, resetting locally.", e);
+      } catch (err) {
+        console.warn("Restart request failed:", err);
       }
 
       localStorage.removeItem("trust_session_id");
       this.sessionId = null;
-      this.messages = [];
       this.ended = false;
-
-      this.sendInitial();
+      this.messages = [
+        {
+          sender: "bot",
+          text: "👋 Welcome! Do you want Motor or Life insurance?"
+        }
+      ];
     },
 
     scrollChatToBottom() {
@@ -177,15 +162,6 @@ export default {
 }
 .logo {
   height: 38px;
-}
-.chat-header h3 {
-  margin: 0;
-  font-size: 15px;
-}
-.chat-header p {
-  margin: 0;
-  font-size: 11px;
-  opacity: 0.9;
 }
 .exit {
   background: transparent;
@@ -254,9 +230,6 @@ export default {
   background: #0a5cff;
   color: white;
   cursor: pointer;
-}
-.chat-input button:disabled {
-  opacity: 0.6;
 }
 .restart {
   background: #6c757d;

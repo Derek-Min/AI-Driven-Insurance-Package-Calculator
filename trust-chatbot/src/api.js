@@ -1,14 +1,19 @@
 import axios from "axios";
 
-const API_BASE = process.env.VUE_APP_API_URL || "http://localhost:8080";
-
 export async function sendMessage(sessionId, message) {
     try {
-        const res = await axios.post(`${API_BASE}/chatbot`, { sessionId, message });
+        const res = await axios.post("/chatbot", {
+            sessionId,
+            message
+        });
 
         let data = res.data;
+
+        // Lambda / API Gateway compatibility
         if (data?.body) {
-            data = typeof data.body === "string" ? JSON.parse(data.body) : data.body;
+            data = typeof data.body === "string"
+                ? JSON.parse(data.body)
+                : data.body;
         }
 
         return {
@@ -17,11 +22,11 @@ export async function sendMessage(sessionId, message) {
             endSession: Boolean(data.endSession)
         };
 
-    } catch {
+    } catch (err) {
+        console.error("Chatbot API error:", err);
         return {
             messages: ["⚠️ Backend not reachable."],
             endSession: false
         };
     }
 }
-
