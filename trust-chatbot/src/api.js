@@ -1,30 +1,22 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "/chatbot",   // 🔑 relative path ONLY
+    baseURL: "/",        // ← CRITICAL
     timeout: 10000
 });
 
-export default api;
-
 export async function sendMessage(sessionId, message) {
     try {
-        const res = await api.post("", {
+        const res = await api.post("chatbot", {
             sessionId,
             message
         });
 
-        const data = res.data;
-
-        return {
-            sessionId: data.sessionId,
-            messages: Array.isArray(data.messages) ? data.messages : [],
-            endSession: Boolean(data.endSession)
-        };
+        return res.data;
     } catch (err) {
         console.error("Chatbot API error:", err);
         return {
-            messages: ["⚠️ Backend not reachable."],
+            messages: ["⚠️ Backend not reachable"],
             endSession: false
         };
     }
