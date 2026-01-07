@@ -52,10 +52,10 @@ public class AwsChatbotService {
         } catch (Exception e) {
             log.error("Chatbot error", e);
             return Map.of(
-                    "messages", new String[]{
+                    "messages", java.util.List.of(
                             "⚠️ Chatbot service is unavailable.",
                             "Please try again later."
-                    },
+                    ),
                     "endSession", false
             );
         }
@@ -119,4 +119,27 @@ public class AwsChatbotService {
 
         return root;
     }
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> normalizeResponse(Map<String, Object> response) {
+
+        Object messages = response.get("messages");
+
+        if (messages instanceof String msg) {
+            response.put("messages", java.util.List.of(msg));
+        }
+        else if (messages instanceof String[] arr) {
+            response.put("messages", java.util.List.of(arr));
+        }
+        else if (messages == null && response.containsKey("message")) {
+            response.put("messages", java.util.List.of(
+                    response.get("message").toString()
+            ));
+        }
+
+        response.putIfAbsent("endSession", false);
+        response.putIfAbsent("sessionId", "local");
+
+        return response;
+    }
+
 }
