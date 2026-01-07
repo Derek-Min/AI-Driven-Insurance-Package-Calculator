@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "http://api.trust-insurancexyz.xyz:8080",
+    baseURL: "/chatbot", // 👈 proxy through Pages
     timeout: 10000
 });
 
@@ -9,7 +9,7 @@ export default api;
 
 export async function sendMessage(sessionId, message) {
     try {
-        const res = await api.post("/chatbot", {
+        const res = await api.post("", {
             sessionId,
             message
         });
