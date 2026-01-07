@@ -5,6 +5,8 @@ const api = axios.create({
     timeout: 10000
 });
 
+export default api;
+
 export async function sendMessage(sessionId, message) {
     try {
         const res = await api.post("/chatbot", {
@@ -12,20 +14,13 @@ export async function sendMessage(sessionId, message) {
             message
         });
 
-        let data = res.data;
-
-        if (data?.body) {
-            data = typeof data.body === "string"
-                ? JSON.parse(data.body)
-                : data.body;
-        }
+        const data = res.data;
 
         return {
             sessionId: data.sessionId,
             messages: Array.isArray(data.messages) ? data.messages : [],
             endSession: Boolean(data.endSession)
         };
-
     } catch (err) {
         console.error("Chatbot API error:", err);
         return {
