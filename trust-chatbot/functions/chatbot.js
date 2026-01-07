@@ -1,5 +1,5 @@
-export async function onRequestPost(context) {
-    const body = await context.request.text();
+export async function onRequestPost({ request }) {
+    const body = await request.text();
 
     const response = await fetch("http://3.238.58.121:8080/chatbot", {
         method: "POST",
@@ -10,9 +10,6 @@ export async function onRequestPost(context) {
     });
 
     return new Response(await response.text(), {
-        status: response.status,
-        headers: {
-            "Content-Type": "application/json"
-        }
+        headers: { "Content-Type": "application/json" }
     });
 }

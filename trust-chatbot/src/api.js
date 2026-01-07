@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "/chatbot", // 👈 proxy through Pages
+    baseURL: "/chatbot",   // 🔑 relative path ONLY
     timeout: 10000
 });
 
