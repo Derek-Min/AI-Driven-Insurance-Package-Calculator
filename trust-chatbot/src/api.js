@@ -1,8 +1,22 @@
 import axios from "axios";
 
+/**
+ * Axios instance for backend API
+ * Uses Cloudflare Pages environment variable
+ */
+const api = axios.create({
+    baseURL: process.env.VUE_APP_API_BASE_URL,
+    timeout: 10000
+});
+
+export default api;
+
+/**
+ * Send message to chatbot backend
+ */
 export async function sendMessage(sessionId, message) {
     try {
-        const res = await axios.post("/chatbot", {
+        const res = await api.post("/chatbot", {
             sessionId,
             message
         });

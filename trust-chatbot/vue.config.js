@@ -1,14 +1,7 @@
-const { defineConfig } = require("@vue/cli-service");
-
-module.exports = defineConfig({
-  transpileDependencies: true,
-
+module.exports = {
+  outputDir: "dist",
+  publicPath: "/",
   devServer: {
-    proxy: {
-      "/chatbot": {
-        target: "http://localhost:8080",
-        changeOrigin: true
-      }
-    }
+    port: 8081
   }
-});
+};
