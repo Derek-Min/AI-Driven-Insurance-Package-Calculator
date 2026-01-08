@@ -1,11 +1,11 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL:
-        import.meta.env.MODE === "production"
-            ? "https://api.trust-insurancexyz.xyz/api"
-            : "http://localhost:8080/api",
-    timeout: 10000
+    baseURL: "https://api.trust-insurancexyz.xyz/api",
+    timeout: 10000,
+    headers: {
+        "Content-Type": "application/json"
+    }
 });
 
 export async function sendMessage(sessionId, message) {
@@ -14,6 +14,7 @@ export async function sendMessage(sessionId, message) {
             sessionId,
             message
         });
+
         return res.data;
     } catch (err) {
         console.error("Chatbot API error:", err);
