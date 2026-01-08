@@ -14,7 +14,7 @@ export async function onRequest(context) {
     const apiPath = context.params.path.join('/');
 
     // Your actual API endpoint
-    const apiUrl = `http://api.trust-insurance.com/${apiPath}${url.search}`;
+    const apiUrl = `https://api.trust-insurance.com/${apiPath}${url.search}`;
 
     try {
         // Forward the request
