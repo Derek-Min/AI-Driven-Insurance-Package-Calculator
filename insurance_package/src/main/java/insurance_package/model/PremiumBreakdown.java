@@ -1,19 +1,13 @@
 package insurance_package.model;
 
-import lombok.*;
+import lombok.Data;
 import java.util.List;
 
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class PremiumBreakdown {
-    private Double sumInsured;
     private String currency;
-
-    private List<CoverageItem> items;
-
-    private Double totalPremium;
-
+    private double sumInsured;
+    private double totalPremium;
     private String summaryExplanation;
+    private List<?> items;
 }

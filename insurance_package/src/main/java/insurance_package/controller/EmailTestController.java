@@ -1,29 +1,33 @@
 package insurance_package.controller;
 
-import insurance_package.service.AwsEmailService;
+import insurance_package.service.EmailService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.File;
+
+@Profile("aws")   // only available in AWS
 @RestController
 @RequiredArgsConstructor
 public class EmailTestController {
 
-    private final AwsEmailService awsEmailService;
+    private final EmailService emailService;
 
-    // TEST ONLY - DO NOT EXPOSE IN PRODUCTION
     @GetMapping("/api/test/email")
     public String testEmail(@RequestParam String to) {
 
-        awsEmailService.sendQuoteEmail(
+        File dummyPdf = new File("generated-pdfs/test.pdf");
+
+        emailService.sendQuoteEmailWithAttachment(
                 to,
                 "SES Test Email - Trust Insurance",
-                "<h2>SES is configured correctly</h2>" +
-                        "<p>This is a test email from the Trust Insurance system.</p>"
+                "<h2>SES is configured correctly</h2>",
+                dummyPdf
         );
 
-        return "Test email sent to " + to;
+        return "✅ Test email triggered for " + to;
     }
 }
-

@@ -1,4 +1,4 @@
-package insurance_package.repository;
+package insurance_package.mongo.repository;
 
 import insurance_package.model.User;
 import org.bson.types.ObjectId;

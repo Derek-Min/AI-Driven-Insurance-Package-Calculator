@@ -8,8 +8,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.Instant;
 import java.util.Map;
 
-@Document("products")
 @Data
+@Document("products")
 public class Product {
     @Id
     private ObjectId id;

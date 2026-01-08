@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="
@@ -6,7 +7,6 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- Spring Boot Parent -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -19,34 +19,16 @@
     <version>1.0.0</version>
     <name>insurance-package</name>
 
-    <!-- ===================== -->
-    <!-- Properties -->
-    <!-- ===================== -->
     <properties>
-        <!-- JDK 23 is installed, but we compile as 17 -->
-        <java.version>23</java.version>
-
+        <java.version>17</java.version>
         <lombok.version>1.18.32</lombok.version>
-        <netty.version>4.1.119.Final</netty.version>
         <aws.sdk.version>2.25.46</aws.sdk.version>
+        <openhtmltopdf.version>1.0.10</openhtmltopdf.version>
     </properties>
 
-    <!-- ===================== -->
-    <!-- Dependency Management -->
-    <!-- ===================== -->
+    <!-- AWS SDK BOM (VERY IMPORTANT) -->
     <dependencyManagement>
         <dependencies>
-
-            <!-- Netty BOM (security + stability) -->
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-bom</artifactId>
-                <version>${netty.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-            <!-- AWS SDK BOM -->
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>bom</artifactId>
@@ -54,82 +36,65 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-
         </dependencies>
     </dependencyManagement>
 
-    <!-- ===================== -->
-    <!-- Dependencies -->
-    <!-- ===================== -->
     <dependencies>
 
-        <!-- Spring Web -->
+        <!-- ================= SPRING BOOT ================= -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- MongoDB -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-mongodb</artifactId>
-        </dependency>
-
-        <!-- Jakarta Mail (REQUIRED for SES attachments) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
 
-        <!-- Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
-        <!-- Thymeleaf (Email + PDF templates) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
 
-        <!-- OpenHTMLtoPDF (REQUIRED BOTH) -->
-        <dependency>
-            <groupId>com.openhtmltopdf</groupId>
-            <artifactId>openhtmltopdf-core</artifactId>
-            <version>1.0.10</version>
-        </dependency>
+        <!-- ================= AWS SDK ================= -->
 
-        <dependency>
-            <groupId>com.openhtmltopdf</groupId>
-            <artifactId>openhtmltopdf-pdfbox</artifactId>
-            <version>1.0.10</version>
-        </dependency>
-
-        <!-- AWS SDK -->
+        <!-- AWS SES -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>ses</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>lambda</artifactId>
-        </dependency>
-
+        <!-- REQUIRED: HTTP client for AWS SDK -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>url-connection-client</artifactId>
         </dependency>
 
-        <!-- Jackson -->
+        <!-- ================= PDF GENERATION ================= -->
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
+            <groupId>com.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-core</artifactId>
+            <version>${openhtmltopdf.version}</version>
         </dependency>
 
-        <!-- Lombok -->
+        <dependency>
+            <groupId>com.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-pdfbox</artifactId>
+            <version>${openhtmltopdf.version}</version>
+        </dependency>
+
+        <!-- ================= UTILITIES ================= -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -137,7 +102,7 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Testing -->
+        <!-- ================= TESTING ================= -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -146,23 +111,15 @@
 
     </dependencies>
 
-    <!-- ===================== -->
-    <!-- Build -->
-    <!-- ===================== -->
     <build>
         <plugins>
 
-            <!-- Compiler -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-
-                    <!-- 🔑 THIS IS THE KEY -->
-                    <!-- JDK 23 runs Maven, but bytecode = Java 17 -->
                     <release>17</release>
-
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
@@ -170,11 +127,9 @@
                             <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
-
                 </configuration>
             </plugin>
 
-            <!-- Spring Boot -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

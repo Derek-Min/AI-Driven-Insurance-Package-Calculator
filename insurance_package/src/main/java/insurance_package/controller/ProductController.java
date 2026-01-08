@@ -1,29 +1,35 @@
 package insurance_package.controller;
 
 import insurance_package.model.Product;
-import insurance_package.repository.ProductRepository;
+import insurance_package.mongo.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.bson.types.ObjectId;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.List;
 
+@Profile("mongo")   // ✅ REQUIRED
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class ProductController {
 
     private final ProductRepository productRepository;
 
     @GetMapping
-    public List<Product> all() { return productRepository.findAll(); }
+    public List<Product> all() {
+        return productRepository.findAll();
+    }
 
     @GetMapping("/{id}")
     public ResponseEntity<Product> byId(@PathVariable String id) {
         return productRepository.findById(new ObjectId(id))
-                .map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
@@ -33,7 +39,10 @@ public class ProductController {
     }
 
     @PatchMapping("/{id}/active/{active}")
-    public ResponseEntity<Product> setActive(@PathVariable String id, @PathVariable boolean active) {
+    public ResponseEntity<Product> setActive(
+            @PathVariable String id,
+            @PathVariable boolean active
+    ) {
         return productRepository.findById(new ObjectId(id))
                 .map(p -> {
                     p.setActive(active);

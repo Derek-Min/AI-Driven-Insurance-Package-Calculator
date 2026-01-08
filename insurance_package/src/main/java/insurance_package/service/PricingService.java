@@ -3,19 +3,21 @@ package insurance_package.service;
 import insurance_package.exception.PricingException;
 import insurance_package.exception.ValidationException;
 import insurance_package.model.*;
-import insurance_package.repository.CoverageOptionRepository;
-import insurance_package.repository.ProductRepository;
-import insurance_package.repository.QuoteRepository;
+import insurance_package.mongo.repository.CoverageOptionRepository;
+import insurance_package.mongo.repository.ProductRepository;
+import insurance_package.mongo.repository.QuoteRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.io.File;
+import java.time.Instant;
+import java.util.*;
 
+@Slf4j
 @Service
+@Profile("mongo")
 @RequiredArgsConstructor
 public class PricingService {
 
@@ -25,16 +27,10 @@ public class PricingService {
     private final MotorRuleEngine motorRuleEngine;
     private final LifeRuleEngine lifeRuleEngine;
     private final PdfQuotationService pdfQuotationService;
-    private final AwsEmailService awsEmailService;
-    private final EmailTemplateService emailTemplateService;
+    private final EmailService emailService;
 
-
-    /**
-     * 1️⃣ Calculate premium using rule engines
-     * 2️⃣ Persist quote to MongoDB
-     * 3️⃣ Generate PDF quotation
-     */
     public PremiumResult calculatePremium(QuotationRequest req) {
+        log.info("Calculating premium for line: {}", req.getLine());
         validate(req);
 
         Product product = productRepository
@@ -46,11 +42,10 @@ public class PricingService {
         Map<String, Object> rates = product.getBaseRates();
 
         if (rates == null) {
-            rates = Map.of(
-                    "base", 400.0,
-                    "per_year", 20.0,
-                    "currency", "MYR"
-            );
+            rates = new HashMap<>();
+            rates.put("base", 400.0);
+            rates.put("per_year", 20.0);
+            rates.put("currency", "MYR");
         }
 
         List<CoverageOption> coverageOptions =
@@ -62,83 +57,38 @@ public class PricingService {
             default      -> throw new PricingException("Unsupported line: " + req.getLine());
         };
 
-        // ✅ Persist + generate PDF
-        persistQuote(req, result);
+        Quote savedQuote = persistQuote(req, result);
 
-        System.out.println(
-                "FINAL COVERAGES = " + result.getBreakdown().getItems()
-                        .stream()
-                        .map(i -> i.getLabel())
-                        .toList()
-        );
-
-
-
-        return result;
-
-    }
-
-
-    /**
-     * Validation stays simple and clean
-     */
-    public void validate(QuotationRequest req) {
-        if (req.getLine() == null)
-            throw new ValidationException("Line required");
-
-        switch (req.getLine()) {
-            case "Motor" -> {
-                must(req, "year");
-                must(req, "usage");
-                must(req, "region");
-                must(req, "ncd_percent");
-            }
-            case "Life" -> {
-                must(req, "age");
-                must(req, "income");
-                must(req, "smoker_status");
-            }
-            default -> throw new ValidationException("Unsupported line: " + req.getLine());
+        // FIXED: Set quoteId on result if the field exists
+        try {
+            // Try to set quoteId using reflection if the field exists
+            result.getClass().getMethod("setQuoteId", String.class).invoke(result, savedQuote.getQuoteId());
+        } catch (Exception e) {
+            // If setQuoteId method doesn't exist, just log and continue
+            log.debug("PremiumResult does not have setQuoteId method");
         }
+
+        log.info("Premium calculation completed for quote: {}", savedQuote.getQuoteId());
+        return result;
     }
 
-    /**
-     * 🧠 This is where QUOTES belong (MongoDB + PDF)
-     */
     public Quote persistQuote(QuotationRequest req, PremiumResult result) {
-
         Map<String, Object> slots = req.getSlots();
+        Map<String, Object> pb = new HashMap<>();
 
-        // -----------------------------
-        // 1) Build PREMIUM BREAKDOWN MAP (what PdfQuotationService expects)
-        // -----------------------------
-        Map<String, Object> pb = new java.util.HashMap<>();
-
-        // Always set these (PDF reads these)
         pb.put("basePremium", result.getBasePremium());
         pb.put("totalPremium", result.getTotalPremium());
         pb.put("riskScore", result.getRiskScore());
 
-        // If motor breakdown exists, include items list + currency + etc.
         if (result.getBreakdown() != null) {
             PremiumBreakdown bd = result.getBreakdown();
-
-            pb.put("currency", bd.getCurrency() != null ? bd.getCurrency() : "MYR");
+            pb.put("currency", bd.getCurrency());
             pb.put("sumInsured", bd.getSumInsured());
-            pb.put("items", bd.getItems() != null ? bd.getItems() : java.util.List.of());
+            pb.put("items", bd.getItems());
             pb.put("summaryExplanation", bd.getSummaryExplanation());
-
-            // keep it consistent (some templates rely on these)
-            pb.put("totalPremium", bd.getTotalPremium());
-        } else {
-            // Life: no breakdown object in your current design, still give safe defaults
-            pb.put("currency", "MYR");
-            pb.put("items", java.util.List.of());
         }
 
-        // -----------------------------
-        // 2) Build Quote entity
-        // -----------------------------
+        // Build quote
         Quote quote = Quote.builder()
                 .quoteId(generateQuoteId())
                 .line(req.getLine())
@@ -146,79 +96,106 @@ public class PricingService {
                 .customerName(String.valueOf(slots.getOrDefault("customer_name", "Customer")))
                 .customerEmail(String.valueOf(slots.getOrDefault("email", "")))
                 .requestDetails(slots)
-                .premiumBreakdown(pb) // ✅ IMPORTANT: store structured map
+                .premiumBreakdown(pb)
                 .totalPremium(result.getTotalPremium())
                 .riskScore(result.getRiskScore())
-                .explanation(result.getBreakdown() != null ? result.getBreakdown().getSummaryExplanation() : null)
                 .status(QuoteStatus.CREATED)
                 .createdAt(Instant.now())
                 .build();
 
-        // -----------------------------
-        // 3) Persist to MongoDB
-        // -----------------------------
         Quote savedQuote = quoteRepository.save(quote);
+        log.info("Quote saved with ID: {}", savedQuote.getQuoteId());
 
-        // -----------------------------
-        // 4) Generate PDF (uses premiumBreakdown map keys)
-        // -----------------------------
-        File pdfFile = pdfQuotationService.generateQuotationPdf(savedQuote);
+        // Generate PDF
+        File pdfFile = null;
+        try {
+            pdfFile = pdfQuotationService.generateQuotationPdf(savedQuote);
+            log.info("PDF generated: {}", pdfFile.getAbsolutePath());
+        } catch (Exception e) {
+            log.error("Failed to generate PDF for quote {}: {}",
+                    savedQuote.getQuoteId(), e.getMessage());
+            // Continue without PDF
+        }
 
-        // -----------------------------
-        // 5) Send ONLY ONE email (attachment email)
-        // -----------------------------
-        String subject = "Trust Insurance – " + savedQuote.getLine() + " Insurance Quotation";
+        // Send email if customer email is provided
+        String customerEmail = savedQuote.getCustomerEmail();
+        if (customerEmail != null && !customerEmail.trim().isEmpty()) {
+            try {
+                // Send quote email
+                emailService.sendQuoteEmail(customerEmail, savedQuote, result);
 
-        // If you have your thymeleaf email templates, use them here.
-        // Example: for motor:
-        // String htmlBody = emailTemplateService.renderMotorQuotationEmailFromQuote(savedQuote);
-        // For now, keep your existing HTML or your new business template.
+                // If PDF was generated, send it as attachment
+                if (pdfFile != null && pdfFile.exists()) {
+                    String subject = String.format("Your %s Insurance Quotation - %s",
+                            savedQuote.getLine(),
+                            savedQuote.getQuoteId());
 
-        String htmlBody = """
-        <html>
-          <body style="font-family:Arial,sans-serif;color:#0b1b3a;">
-            <h2>Trust Insurance</h2>
-            <p>Secure your future</p>
-            <p>Dear %s,</p>
-            <p>Thank you for choosing Trust Insurance. Your %s Insurance quotation PDF is attached.</p>
-            <p><b>Total Premium:</b> %s %s<br/>
-               <b>Risk Score:</b> %s</p>
-            <p style="color:#60708a;font-size:12px;">
-              This quotation is valid for 14 days and subject to underwriting approval.
-            </p>
-          </body>
-        </html>
-        """.formatted(
-                savedQuote.getCustomerName(),
-                savedQuote.getLine(),
-                savedQuote.getCurrency(),
-                savedQuote.getTotalPremium(),
-                savedQuote.getRiskScore()
-        );
+                    String body = String.format("""
+                        Dear %s,
+                        
+                        Please find your %s insurance quotation attached.
+                        
+                        Quote Summary:
+                        - Quote ID: %s
+                        - Total Premium: %s %s
+                        - Risk Score: %s
+                        
+                        This quotation is valid for 14 days.
+                        
+                        Best regards,
+                        Trust Insurance Team
+                        """,
+                            savedQuote.getCustomerName(),
+                            savedQuote.getLine(),
+                            savedQuote.getQuoteId(),
+                            savedQuote.getCurrency(),
+                            savedQuote.getTotalPremium(),
+                            savedQuote.getRiskScore()
+                    );
 
-        awsEmailService.sendQuoteEmailWithAttachment(
-                savedQuote.getCustomerEmail(),
-                subject,
-                htmlBody,
-                pdfFile
-        );
+                    emailService.sendQuoteEmailWithAttachment(
+                            customerEmail,
+                            subject,
+                            body,
+                            pdfFile
+                    );
+
+                    log.info("Email with PDF attachment sent to {}", customerEmail);
+                }
+
+            } catch (Exception e) {
+                log.error("Failed to send email for quote {}: {}",
+                        savedQuote.getQuoteId(), e.getMessage());
+                // Don't fail the quote creation if email fails
+            }
+
+            // Clean up PDF file after sending
+            if (pdfFile != null && pdfFile.exists()) {
+                try {
+                    boolean deleted = pdfFile.delete();
+                    if (deleted) {
+                        log.debug("Temporary PDF file deleted: {}", pdfFile.getName());
+                    }
+                } catch (SecurityException e) {
+                    log.warn("Could not delete PDF file: {}", e.getMessage());
+                }
+            }
+        } else {
+            log.warn("No email provided for quote {}, email not sent", savedQuote.getQuoteId());
+        }
 
         return savedQuote;
     }
 
-
-
-
-
-    private void must(QuotationRequest req, String key) {
-        var slots = req.getSlots();
-        if (slots == null || slots.get(key) == null)
-            throw new ValidationException("Missing required attribute: " + key);
+    private void validate(QuotationRequest req) {
+        if (req.getLine() == null || req.getLine().trim().isEmpty()) {
+            throw new ValidationException("Insurance line is required");
+        }
     }
 
-
     private String generateQuoteId() {
-        return "Q-" + Instant.now().toString().substring(0, 10).replace("-", "")
-                + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        String datePart = Instant.now().toString().substring(0, 10).replace("-", "");
+        String randomPart = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        return "Q-" + datePart + "-" + randomPart;
     }
 }

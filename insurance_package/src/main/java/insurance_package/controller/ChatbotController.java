@@ -7,16 +7,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
+@RequestMapping("/chatbot")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class ChatbotController {
 
     private final AwsChatbotService chatbotService;
 
-    @PostMapping("/chatbot")
-    public Map<String, Object> ask(@RequestBody Map<String, Object> body) {
-        // Simply forward request to chatbot service
-        // Lambda handles flow + quotation triggering
-        return chatbotService.askChatbot(body);
+    @PostMapping
+    public Map<String, Object> chatbot(@RequestBody Map<String, Object> payload) {
+        return chatbotService.askChatbot(payload);
     }
 }

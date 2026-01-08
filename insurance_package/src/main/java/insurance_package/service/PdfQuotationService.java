@@ -2,29 +2,29 @@ package insurance_package.service;
 
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import insurance_package.model.Quote;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.nio.file.Path;
+import java.io.OutputStream;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
+@Slf4j
 @Service
 public class PdfQuotationService {
 
     private final SpringTemplateEngine templateEngine;
 
-    @Value("${quotation.pdf.output-dir:generated-pdfs}")
+    @Value("${quotation.pdf.output-dir:./generated-pdfs}")
     private String outputDir;
 
-    // ✅ from application.properties (base64 image string)
     @Value("${company.logo.base64:}")
     private String companyLogoBase64;
 
@@ -33,32 +33,31 @@ public class PdfQuotationService {
     }
 
     public File generateQuotationPdf(Quote quote) {
-
-        if (quote == null) {
-            throw new IllegalArgumentException("Quote is null");
-        }
+        log.info("Generating PDF for quote: {}", quote.getQuoteId());
 
         try {
             String line = safe(quote.getLine());
-            String folder = "Motor".equalsIgnoreCase(line) ? "Motor" : "Life";
+            boolean isMotor = "Motor".equalsIgnoreCase(line);
 
-            // -------------------------------
             // Prepare Thymeleaf Context
-            // -------------------------------
             Context ctx = new Context();
 
+            // Basic quote information
+            ctx.setVariable("quote", quote);
             ctx.setVariable("quotationNo", safe(quote.getQuoteId()));
             ctx.setVariable("issueDate", LocalDate.now());
             ctx.setVariable("validUntil", LocalDate.now().plusDays(14));
+            ctx.setVariable("formattedDate",
+                    LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMMM yyyy")));
 
             ctx.setVariable("customerName", safe(quote.getCustomerName()));
+            ctx.setVariable("customerEmail", safe(quote.getCustomerEmail()));
             ctx.setVariable("currency", safeOrDefault(quote.getCurrency(), "MYR"));
             ctx.setVariable("totalPremium", quote.getTotalPremium() == null ? 0 : quote.getTotalPremium());
             ctx.setVariable("riskScore", quote.getRiskScore());
+            ctx.setVariable("line", line);
 
-            // -------------------------------
-            // ✅ Logo
-            // -------------------------------
+            // Company logo
             if (companyLogoBase64 != null && !companyLogoBase64.isBlank()) {
                 String logo = companyLogoBase64.trim();
                 if (!logo.startsWith("data:image")) {
@@ -69,126 +68,102 @@ public class PdfQuotationService {
                 ctx.setVariable("logoBase64", "");
             }
 
-            // -------------------------------
             // Request details (slots)
-            // -------------------------------
-            Map<String, Object> req = quote.getRequestDetails();
-            if (req == null) req = new HashMap<>();
+            Map<String, Object> requestDetails = quote.getRequestDetails();
+            if (requestDetails == null) {
+                requestDetails = new HashMap<>();
+            }
+            ctx.setVariable("requestDetails", requestDetails);
 
-            // -------------------------------
-            // Motor variables (template uses these)
-            // -------------------------------
-            ctx.setVariable("vehicleMake", safe(req.get("make")));
-            ctx.setVariable("vehicleModel", safe(req.get("model")));
-            ctx.setVariable("vehicleYear", safe(req.get("year")));
-            ctx.setVariable("plateNo", safe(req.get("plate_no")));
-            ctx.setVariable("usage", safe(req.get("usage")));
-            ctx.setVariable("region", safe(req.get("region")));
-            ctx.setVariable("sumInsured", safe(req.get("sum_insured")));
-
-            // -------------------------------
-            // ✅ Life variables (template uses profile.age etc)
-            // -------------------------------
-            if ("Life".equalsIgnoreCase(line)) {
+            // Motor-specific variables - FIXED: Use explicit type casting
+            if (isMotor) {
+                ctx.setVariable("vehicleMake", safe(requestDetails.get("make")));
+                ctx.setVariable("vehicleModel", safe(requestDetails.get("model")));
+                ctx.setVariable("vehicleYear", safe(requestDetails.get("year")));
+                ctx.setVariable("plateNo", safe(requestDetails.get("plate_no")));
+                ctx.setVariable("usage", safe(requestDetails.get("usage")));
+                ctx.setVariable("region", safe(requestDetails.get("region")));
+                ctx.setVariable("sumInsured", safe(requestDetails.get("sum_insured")));
+            }
+            // Life-specific variables - FIXED: Proper handling without getOrDefault
+            else {
                 Map<String, Object> profile = new HashMap<>();
-                profile.put("age", req.get("age"));
-                profile.put("gender", req.get("gender"));
-                profile.put("smoker_status", req.get("smoker_status"));
-                profile.put("income", req.get("income"));
+
+                // Manually check and convert each field
+                Object ageObj = requestDetails.get("age");
+                profile.put("age", ageObj != null ? String.valueOf(ageObj) : "N/A");
+
+                Object genderObj = requestDetails.get("gender");
+                profile.put("gender", genderObj != null ? String.valueOf(genderObj) : "Not specified");
+
+                Object smokerObj = requestDetails.get("smoker_status");
+                profile.put("smoker_status", smokerObj != null ? String.valueOf(smokerObj) : "N/A");
+
+                Object incomeObj = requestDetails.get("income");
+                profile.put("income", incomeObj != null ? String.valueOf(incomeObj) : "0");
+
+                Object occupationObj = requestDetails.get("occupation");
+                profile.put("occupation", occupationObj != null ? String.valueOf(occupationObj) : "Not specified");
+
+                Object maritalObj = requestDetails.get("marital_status");
+                profile.put("marital_status", maritalObj != null ? String.valueOf(maritalObj) : "Not specified");
 
                 ctx.setVariable("profile", profile);
             }
 
-            // -------------------------------
-            // Premium breakdown (COVERAGES) - SAFE
-            // -------------------------------
-            Map<String, Object> breakdown =
-                    quote.getPremiumBreakdown() != null
-                            ? quote.getPremiumBreakdown()
-                            : new HashMap<>();
+            // Premium breakdown
+            Map<String, Object> breakdown = quote.getPremiumBreakdown();
+            if (breakdown == null) {
+                breakdown = new HashMap<>();
+            }
+            ctx.setVariable("breakdown", breakdown);
 
-            // ✅ basePremium for Life PDF (your template uses it)
+            // Base premium
             Object basePremium = breakdown.get("basePremium");
             if (basePremium == null) basePremium = breakdown.get("base_premium");
             ctx.setVariable("basePremium", basePremium == null ? 0 : basePremium);
 
-            // ✅ currency from breakdown (if present)
+            // Currency from breakdown (if present)
             Object bdCurrency = breakdown.get("currency");
             if (bdCurrency != null && !String.valueOf(bdCurrency).isBlank()) {
                 ctx.setVariable("currency", String.valueOf(bdCurrency));
             }
 
-            // ✅ totalPremium from breakdown (if present)
+            // Total premium from breakdown (if present)
             Object total = breakdown.get("totalPremium");
             if (total != null) {
                 ctx.setVariable("totalPremium", total);
             }
 
-            // -------------------------------
-            // Motor coverage items list
-            // -------------------------------
-            Object itemsObj = breakdown.get("items");
-
-            List<Map<String, Object>> coverageItems = new ArrayList<>();
-
-            if (itemsObj instanceof List<?> list) {
-                for (Object it : list) {
-
-                    // Case A: Mongo/JSON -> Map
-                    if (it instanceof Map<?, ?> m) {
-                        String label = m.get("label") == null ? "" : String.valueOf(m.get("label"));
-                        Object amount = m.get("amount");
-
-                        Map<String, Object> row = new HashMap<>();
-                        row.put("label", label);
-                        row.put("amount", amount == null ? 0 : amount);
-                        coverageItems.add(row);
-                        continue;
-                    }
-
-                    // Case B: POJO -> CoverageItem (reflection)
-                    try {
-                        Object labelObj = it.getClass().getMethod("getLabel").invoke(it);
-                        Object amountObj = it.getClass().getMethod("getAmount").invoke(it);
-
-                        Map<String, Object> row = new HashMap<>();
-                        row.put("label", labelObj == null ? "" : String.valueOf(labelObj));
-                        row.put("amount", amountObj == null ? 0 : amountObj);
-                        coverageItems.add(row);
-                    } catch (Exception ignore) {
-                        // skip unknown type
-                    }
-                }
-            }
-
+            // Coverage items
+            List<Map<String, Object>> coverageItems = extractCoverageItems(breakdown);
             ctx.setVariable("coverageItems", coverageItems);
-            System.out.println("PDF coverageItems count = " + coverageItems.size());
+            log.debug("PDF coverageItems count = {}", coverageItems.size());
 
-            // -------------------------------
-            // Select template
-            // -------------------------------
-            String template = "Motor".equalsIgnoreCase(folder)
-                    ? "pdf/motor-quote"
-                    : "pdf/life-quote";
+            // Select template - CORRECTED PATH
+            String templatePath;
+            if (isMotor) {
+                templatePath = "pdf/motor-quote"; // Looks for templates/pdf/motor-quote.html
+            } else {
+                templatePath = "pdf/life-quote";  // Looks for templates/pdf/life-quote.html
+            }
 
-            String html = templateEngine.process(template, ctx);
+            String html = templateEngine.process(templatePath, ctx);
 
-            // -------------------------------
-            // Output PDF
-            // -------------------------------
-            Path dirPath = Path.of(outputDir, folder);
-            File dir = dirPath.toFile();
-
-            if (!dir.exists()) {
-                boolean created = dir.mkdirs();
+            // Ensure output directory exists
+            File outputDirFile = new File(outputDir);
+            if (!outputDirFile.exists()) {
+                boolean created = outputDirFile.mkdirs();
                 if (!created) {
-                    throw new RuntimeException("Failed to create output directory: " + dirPath);
+                    throw new RuntimeException("Failed to create output directory: " + outputDir);
                 }
             }
 
-            File pdfFile = dirPath.resolve(quote.getQuoteId() + ".pdf").toFile();
+            // Generate PDF file
+            String fileName = "Quotation_" + quote.getQuoteId() + ".pdf";
+            File pdfFile = new File(outputDirFile, fileName);
 
-            try (FileOutputStream os = new FileOutputStream(pdfFile)) {
+            try (OutputStream os = new FileOutputStream(pdfFile)) {
                 PdfRendererBuilder builder = new PdfRendererBuilder();
                 builder.useFastMode();
                 builder.withHtmlContent(html, null);
@@ -196,11 +171,59 @@ public class PdfQuotationService {
                 builder.run();
             }
 
+            log.info("PDF generated successfully: {}", pdfFile.getAbsolutePath());
             return pdfFile;
 
         } catch (Exception e) {
+            log.error("PDF generation failed for quote {}: {}",
+                    quote.getQuoteId(), e.getMessage(), e);
             throw new RuntimeException("PDF generation failed: " + e.getMessage(), e);
         }
+    }
+
+    @SuppressWarnings("rawtypes")
+    private List<Map<String, Object>> extractCoverageItems(Map<String, Object> breakdown) {
+        List<Map<String, Object>> coverageItems = new ArrayList<>();
+
+        Object itemsObj = breakdown.get("items");
+        if (itemsObj instanceof List<?> list) {
+            for (Object item : list) {
+                Map<String, Object> coverageItem = new HashMap<>();
+
+                if (item instanceof Map) {
+                    // Handle Map structure - Use raw types to avoid casting issues
+                    Map itemMap = (Map) item;
+
+                    Object labelObj = itemMap.get("label");
+                    Object amountObj = itemMap.get("amount");
+                    Object descObj = itemMap.get("description");
+
+                    coverageItem.put("label", labelObj != null ? String.valueOf(labelObj) : "");
+                    coverageItem.put("amount", amountObj != null ? amountObj : 0);
+                    coverageItem.put("description", descObj != null ? String.valueOf(descObj) : "");
+                } else {
+                    // Try reflection for POJO
+                    try {
+                        Object labelObj = item.getClass().getMethod("getLabel").invoke(item);
+                        Object amountObj = item.getClass().getMethod("getAmount").invoke(item);
+                        Object descObj = item.getClass().getMethod("getDescription").invoke(item);
+
+                        coverageItem.put("label", labelObj != null ? labelObj.toString() : "");
+                        coverageItem.put("amount", amountObj != null ? amountObj : 0);
+                        coverageItem.put("description", descObj != null ? descObj.toString() : "");
+                    } catch (Exception e) {
+                        // Skip unknown type
+                        log.warn("Could not extract coverage item: {}", item);
+                    }
+                }
+
+                if (!coverageItem.isEmpty()) {
+                    coverageItems.add(coverageItem);
+                }
+            }
+        }
+
+        return coverageItems;
     }
 
     private String safe(Object o) {
@@ -209,6 +232,6 @@ public class PdfQuotationService {
 
     private String safeOrDefault(Object o, String def) {
         String s = safe(o);
-        return s.isBlank() ? def : s;
+        return s == null || s.isBlank() ? def : s;
     }
 }

@@ -69,23 +69,25 @@ export default {
       const text = this.userInput.trim();
       if (!text || this.loading || this.ended) return;
 
+      // 1️⃣ Push user message
       this.messages.push({ sender: "user", text });
       this.userInput = "";
       this.loading = true;
       this.scrollChatToBottom();
 
       try {
+        // 2️⃣ Call backend API
         const response = await api.sendMessage(this.sessionId, text);
 
-        if (response?.sessionId) {
-          this.sessionId = response.sessionId;
-          localStorage.setItem("trust_session_id", this.sessionId);
-        }
+        // 3️⃣ Display bot messages
+        response?.messages?.forEach(msg => {
+          this.messages.push({
+            sender: "bot",
+            text: msg
+          });
+        });
 
-        response?.messages?.forEach(m =>
-            this.messages.push({ sender: "bot", text: m })
-        );
-
+        // 4️⃣ End session if needed
         if (response?.endSession) {
           this.ended = true;
           this.messages.push({
@@ -94,7 +96,8 @@ export default {
           });
         }
 
-      } catch {
+      } catch (err) {
+        console.error(err);
         this.messages.push({
           sender: "bot",
           text: "❗ Something went wrong. Please try again."
@@ -105,15 +108,11 @@ export default {
       }
     },
 
-    async restart() {
-      try {
-        await api.sendMessage(this.sessionId, "restart");
-      } catch (err) {
-        console.warn("Restart request failed:", err);
-      }
-
+    restart() {
       localStorage.removeItem("trust_session_id");
-      this.sessionId = null;
+      this.sessionId = crypto.randomUUID();
+      localStorage.setItem("trust_session_id", this.sessionId);
+
       this.ended = false;
       this.messages = [
         {
@@ -121,15 +120,9 @@ export default {
           text: "👋 Welcome! Do you want Motor or Life insurance?"
         }
       ];
-    },
-
-    scrollChatToBottom() {
-      this.$nextTick(() => {
-        const box = this.$refs.chatBox;
-        if (box) box.scrollTop = box.scrollHeight;
-      });
     }
   }
+
 };
 </script>
 

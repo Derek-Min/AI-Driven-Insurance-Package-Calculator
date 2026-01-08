@@ -1,17 +1,20 @@
 package insurance_package.controller;
 
 import insurance_package.model.CoverageOption;
-import insurance_package.repository.CoverageOptionRepository;
+import insurance_package.mongo.repository.CoverageOptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.bson.types.ObjectId;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Profile("mongo")   // ✅ ONLY load when Mongo is enabled
 @RestController
 @RequestMapping("/api/coverage-options")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class CoverageOptionController {
 
     private final CoverageOptionRepository coverageRepo;
@@ -27,7 +30,10 @@ public class CoverageOptionController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CoverageOption> update(@PathVariable String id, @RequestBody CoverageOption option) {
+    public ResponseEntity<CoverageOption> update(
+            @PathVariable String id,
+            @RequestBody CoverageOption option
+    ) {
         return coverageRepo.findById(new ObjectId(id))
                 .map(existing -> {
                     option.setId(existing.getId());

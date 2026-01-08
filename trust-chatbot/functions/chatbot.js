@@ -1,7 +1,7 @@
 export async function onRequestPost({ request }) {
     const body = await request.text();
 
-    const response = await fetch("http://3.238.58.121:8080/chatbot", {
+    const res = await fetch("http://127.0.0.1:8080/chatbot", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -9,7 +9,10 @@ export async function onRequestPost({ request }) {
         body
     });
 
-    return new Response(await response.text(), {
-        headers: { "Content-Type": "application/json" }
+    return new Response(await res.text(), {
+        headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+        }
     });
 }

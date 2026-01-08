@@ -1,23 +1,25 @@
 package insurance_package.service;
 
 import insurance_package.model.*;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Profile("mongo")     // ✅ REQUIRED
 @Component
 public class MotorRuleEngine {
 
     @SuppressWarnings("unchecked")
-    public PremiumResult applyBusinessRules(QuotationRequest req,
-                                            Map<String, Object> rates,
-                                            List<CoverageOption> coverageOptions) {
-
+    public PremiumResult applyBusinessRules(
+            QuotationRequest req,
+            Map<String, Object> rates,
+            List<CoverageOption> coverageOptions
+    ) {
         Map<String, Object> slots = req.getSlots();
 
-        // -------- 1. Core premium --------
         double base = toDouble(rates.getOrDefault("base", 400));
         double perYear = toDouble(rates.getOrDefault("per_year", 20));
 
@@ -27,11 +29,8 @@ public class MotorRuleEngine {
         String usage = String.valueOf(slots.getOrDefault("usage", ""));
         String region = String.valueOf(slots.getOrDefault("region", ""));
         double ncd = toDouble(slots.getOrDefault("ncd_percent", 0));
-
         double sumInsured = toDouble(slots.getOrDefault("sum_insured", 0));
-        String currency = String.valueOf(
-                rates.getOrDefault("currency", "MYR")
-        );
+        String currency = String.valueOf(rates.getOrDefault("currency", "MYR"));
 
         Map<String, Object> usageFactors =
                 (Map<String, Object>) rates.get("usage_factors");
@@ -45,16 +44,13 @@ public class MotorRuleEngine {
         double basePremium = base + ageLoad;
         double discount = 1 - (ncd / 100.0);
 
-        double subtotal =
-                basePremium * usageFactor * regionFactor * discount;
-
+        double subtotal = basePremium * usageFactor * regionFactor * discount;
         double sst = subtotal * 0.06;
         double stampDuty = 10.0;
 
         double coreMotorPremium =
                 round2(subtotal + sst + stampDuty);
 
-        // -------- 2. Coverage items --------
         List<CoverageItem> items = new ArrayList<>();
 
         CoverageItem basic = new CoverageItem();
@@ -76,7 +72,6 @@ public class MotorRuleEngine {
                 boolean enabled =
                         option.isDefaultOn()
                                 || Boolean.TRUE.equals(flagVal);
-
 
                 if (!isBasic && enabled) {
                     double amount;
@@ -100,14 +95,11 @@ public class MotorRuleEngine {
                 items.stream().mapToDouble(CoverageItem::getAmount).sum()
         );
 
-        // -------- 3. Risk score --------
         int risk = Math.max(0, Math.min(100,
-                50
-                        + (vehicleAge * 2)
+                50 + (vehicleAge * 2)
                         + ("Kuala Lumpur".equalsIgnoreCase(region) ? 8 : 0)
                         - (int) (ncd / 2)));
 
-        // -------- 4. Breakdown --------
         PremiumBreakdown breakdown = new PremiumBreakdown();
         breakdown.setSumInsured(sumInsured);
         breakdown.setCurrency(currency);
@@ -124,32 +116,10 @@ public class MotorRuleEngine {
         result.setBasePremium(round2(basePremium));
         result.setTotalPremium(totalPremium);
         result.setRiskScore(risk);
-        result.setCoverages(
-                items.stream()
-                        .map(CoverageItem::getLabel)
-                        .collect(Collectors.toList())
-        );
-        result.setAppliedRules(List.of(
-                "AgeLoad",
-                "UsageFactor",
-                "RegionFactor",
-                "NCD",
-                "SST",
-                "StampDuty",
-                "CoverageOptions"
-        ));
-
-        Map<String, Object> coverageMap = new LinkedHashMap<>();
-        for (CoverageItem item : items) {
-            coverageMap.put(item.getLabel(), item.getAmount());
-        }
-        result.setCoverageBreakdown(coverageMap);
         result.setBreakdown(breakdown);
 
         return result;
     }
-
-    // ---------------- helpers ----------------
 
     private static double toDouble(Object o) {
         if (o == null) return 0.0;

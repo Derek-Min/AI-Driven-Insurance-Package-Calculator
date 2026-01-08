@@ -6,14 +6,16 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-@Document("coverage_options")
 @Data
+@Document("coverage_options")
 public class CoverageOption {
+
     @Id
     private ObjectId id;
 
     @Field("product_id")
     private ObjectId productId;
+
     private String code;
     private String label;
     private String description;
