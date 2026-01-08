@@ -10,7 +10,7 @@ const api = axios.create({
 
 export async function sendMessage(sessionId, message) {
     try {
-        const res = await api.post("/chatbot", {
+        const res = await api.post("https://api.trust-insurancexyz.xyz/api/chatbot", {
             sessionId,
             message
         });
