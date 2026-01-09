@@ -12,7 +12,7 @@ export async function onRequest(context) {
     const url = new URL(context.request.url);
     const apiPath = context.params.path.join("/");
 
-    const apiUrl = `https://api.trust-insurancexyz.xyz/api/${apiPath}`;
+    const apiUrl = `https://trust-insurancexyz.xyz/api/${apiPath}`;
 
     const response = await fetch(apiUrl, {
         method: "POST",
