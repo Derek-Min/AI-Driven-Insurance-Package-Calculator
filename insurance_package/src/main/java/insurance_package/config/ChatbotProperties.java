@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Configuration;
 
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "chatbot")
 public class ChatbotProperties {
 
     /**

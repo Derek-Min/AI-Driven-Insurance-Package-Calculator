@@ -1,54 +1,30 @@
 export async function onRequest(context) {
-    // Handle OPTIONS preflight requests
-    if (context.request.method === 'OPTIONS') {
+    if (context.request.method === "OPTIONS") {
         return new Response(null, {
             headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type',
-            },
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST,OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            }
         });
     }
 
     const url = new URL(context.request.url);
-    const apiPath = context.params.path.join('/');
+    const apiPath = context.params.path.join("/");
 
-    // Your actual API endpoint
-    const apiUrl = `https://api.trust-insurance.com/${apiPath}${url.search}`;
+    const apiUrl = `https://api.trust-insurancexyz.xyz/api/${apiPath}`;
 
-    try {
-        // Forward the request
-        const response = await fetch(apiUrl, {
-            method: context.request.method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: context.request.method !== 'GET' ? context.request.body : undefined,
-        });
+    const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: await context.request.text()
+    });
 
-        // Get the response body
-        const data = await response.text();
-
-        // Return the response with CORS headers
-        return new Response(data, {
-            status: response.status,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type',
-            },
-        });
-    } catch (error) {
-        return new Response(JSON.stringify({
-            messages: ["⚠️ Backend not reachable"],
-            endSession: false
-        }), {
-            status: 500,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            },
-        });
-    }
+    return new Response(await response.text(), {
+        status: response.status,
+        headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+        }
+    });
 }
