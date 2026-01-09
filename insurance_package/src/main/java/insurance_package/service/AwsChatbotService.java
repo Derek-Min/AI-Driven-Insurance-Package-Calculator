@@ -3,11 +3,10 @@ package insurance_package.service;
 import insurance_package.mongo.model.ChatSession;
 import insurance_package.mongo.repository.ChatSessionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import insurance_package.service.PdfQuotationService;
+import org.springframework.web.client.RestTemplate;
 
-
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -16,59 +15,35 @@ import java.util.Map;
 public class AwsChatbotService {
 
     private final ChatSessionRepository chatSessionRepository;
-    private final PdfQuotationService pdfQuotationService;
 
+    @Value("${chatbot.engine-url}")
+    private String chatbotEngineUrl;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     public Map<String, Object> askChatbot(Map<String, Object> payload) {
 
         String sessionId = String.valueOf(payload.get("sessionId"));
-        String message = String.valueOf(payload.get("message")).toLowerCase().trim();
+        String message = String.valueOf(payload.get("message"));
 
         // Save user message
         saveMessage(sessionId, "user", message);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("endSession", false);
-
-        List<String> botMessages;
-
-        // Chatbot logic
-        if (message.matches("hi|hello|hey")) {
-            botMessages = List.of(
-                    "👋 Hello! Welcome to Trust Insurance.",
-                    "Do you want Life Insurance or Motor Insurance?"
-            );
-        }
-        else if (message.contains("life")) {
-            botMessages = List.of(
-                    "🧑‍⚕️ Life Insurance selected.",
-                    "Please tell me your age."
-            );
-        }
-        else if (message.contains("motor")) {
-            botMessages = List.of(
-                    "🚗 Motor Insurance selected.",
-                    "Please tell me your car model."
-            );
-        }
-        else if (message.matches("\\d{1,2}")) {
-            botMessages = List.of(
-                    "📊 Thank you.",
-                    "Your estimated premium starts from RM120/month."
-            );
-            response.put("endSession", true);
-        }
-        else {
-            botMessages = List.of(
-                    "❓ I didn't understand that.",
-                    "Please type 'life' or 'motor'."
-            );
-        }
+        // 🔥 Call Python Lambda server
+        Map<String, Object> response =
+                restTemplate.postForObject(
+                        chatbotEngineUrl,
+                        payload,
+                        Map.class
+                );
 
         // Save bot messages
-        botMessages.forEach(m -> saveMessage(sessionId, "bot", m));
+        if (response != null && response.get("messages") instanceof List<?> msgs) {
+            msgs.forEach(m ->
+                    saveMessage(sessionId, "bot", String.valueOf(m))
+            );
+        }
 
-        response.put("messages", botMessages);
         return response;
     }
 

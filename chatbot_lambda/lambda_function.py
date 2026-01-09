@@ -8,10 +8,12 @@ import re
 from pymongo import MongoClient
 
 # -------------------------------------------------
-# Configuration
+# Configuration (PRODUCTION SAFE)
 # -------------------------------------------------
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8080")
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+
+# MUST be HTTPS in production (NO default localhost)
+BACKEND_URL = os.environ["BACKEND_URL"]  # e.g. https://api.trust-insurancexyz.xyz
+MONGO_URI = os.environ["MONGO_URI"]      # MongoDB Atlas URI
 DB_NAME = "insurance_chatbot"
 
 logger = logging.getLogger()
@@ -52,7 +54,11 @@ def http_post_json(url, data):
     req = urllib.request.Request(
         url,
         data=payload,
-        headers={"Content-Type": "application/json"}
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        method="POST"
     )
     with urllib.request.urlopen(req, timeout=20) as r:
         return json.loads(r.read().decode())
@@ -115,7 +121,7 @@ def make_response(sid, messages, end=False):
         "headers": {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Allow-Methods": "OPTIONS,POST"
         },
         "body": json.dumps({
@@ -152,11 +158,11 @@ SLOT_MAP = {
 }
 
 # -------------------------------------------------
-# Lambda Handler
+# Lambda Handler (PRODUCTION)
 # -------------------------------------------------
 def lambda_handler(event, context=None):
 
-    # Handle preflight (important for local proxy)
+    # OPTIONS / CORS preflight
     if event.get("httpMethod") == "OPTIONS":
         return make_response("na", [], end=False)
 
@@ -236,12 +242,16 @@ def lambda_handler(event, context=None):
             return make_response(session_id, required[step + 1][1])
 
     # -------------------------
-    # Call Spring Boot backend
+    # Call Spring Boot Backend (HTTPS ONLY)
     # -------------------------
     try:
         resp = http_post_json(
             f"{BACKEND_URL}/api/quote/{intent.lower()}/from-chat",
-            {"sessionId": session_id, "intent": intent, "slots": slots}
+            {
+                "sessionId": session_id,
+                "intent": intent,
+                "slots": slots
+            }
         )
 
         if not resp.get("ok"):
