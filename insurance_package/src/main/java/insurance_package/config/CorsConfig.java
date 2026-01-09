@@ -11,12 +11,10 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
                 .allowedOriginPatterns(
-                        "https://trust-insurancexyz.xyz",
-                        "http://localhost:3000"
+                        "http://localhost:3000",
+                        "https://trust-insurancexyz.xyz"
                 )
-                .allowedMethods(
-                        "GET", "POST", "PUT", "DELETE", "OPTIONS"
-                )
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
     }
