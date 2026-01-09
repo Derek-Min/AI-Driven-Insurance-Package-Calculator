@@ -10,11 +10,11 @@ const api = axios.create({
 
 export async function sendMessage(sessionId, message) {
     try {
-        const res = await api.post("/chatbot", {
-            sessionId,
-            message
+        const res = await api.request({
+            url: "/chatbot",
+            method: "POST",
+            data: { sessionId, message }
         });
-
         return res.data;
     } catch (err) {
         console.error("Chatbot API error:", err);
@@ -24,3 +24,4 @@ export async function sendMessage(sessionId, message) {
         };
     }
 }
+
